@@ -10,6 +10,10 @@ PSI = float
 CT = float
 AccyScore = float
 QPS = float
+HostCPUUtil = Utilization
+HostMemUtil = Utilization
+PodCPUUtil = Utilization
+PodMemUtil = Utilization
 
 
 class Pod:

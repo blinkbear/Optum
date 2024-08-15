@@ -1,6 +1,6 @@
 from utils import get_all_pod_cpu_usage, get_pod_mem_usage
 from utils.k8s import client as k8s_client
-from models.profiler import EROTable
+from models import EROTable
 from custom_types import MemInMB
 import pandas as pd
 import os
