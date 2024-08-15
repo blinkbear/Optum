@@ -17,6 +17,15 @@ class Client:
         config.load_kube_config()
         self.v1 = client.CoreV1Api()
 
+    def get_pod_app(self, pod: V1Pod) -> str:
+        app = pod.metadata.labels.get("app", "nan")
+        app = pod.metadata.labels.get("app-name", app)
+        return app
+
+    def get_pod_app_by_name(self, pod_name: str, namespace: str) -> str:
+        pod = self.v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+        return self.get_pod_app(pod)
+
     def get_pods(self, node: str) -> list[V1Pod]:
         return [
             pod

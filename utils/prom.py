@@ -55,7 +55,7 @@ class Client:
         url_suffix = {"range": "query_range", "point": "query"}[query_type]
         res = requests.get(f"{self.host}/api/v1/{url_suffix}", params=request_data)
         return res
-    
+
     def fetch_cpu_usage(
         self,
         deployments: list[str],
@@ -173,7 +173,7 @@ class Client:
         """
         query = f'sum(kube_pod_container_resource_limits_memory_bytes{{node=~"{"|".join(nodes)}"}}) by (node) / 1024 / 1024'
         return self.fetch(query, "point", time=time())
-    
+
     def fetch_pod_cpu_usage_by_node(self, node: str) -> Response:
         """Get CPU usage of all pods that assigned to certain node.
 
@@ -185,5 +185,10 @@ class Client:
         """
         query = f'rate(container_cpu_usage_seconds_total{{node="{node}"}}[1m])'
         return self.fetch(query, "point", time=time())
+
+    def fetch_pod_mem_usage(self) -> Response:
+        query = f'node_namespace_pod_container:container_memory_working_set_bytes'
+        return self.fetch(query, "point", time=time())
+
 
 client = Client("http://localhost:30091")
