@@ -9,12 +9,12 @@ class ResourceUsagePredictor:
         self.profiler = ResourceUsageProfiler(ero_table_path, mem_data_path)
 
     def get_ec(self, pod_1: Pod, pod_2: Pod) -> CPUCores:
-        ero = self.profiler.get_ero(pod_1.app, pod_2.app)
+        ero = self.profiler.get_ero(pod_1.app_name, pod_2.app_name)
         # Equation (7)
         return ero * (pod_1.cpu_requests + pod_2.cpu_requests)
 
     def get_em(self, pod_1: Pod) -> MemInMB:
-        return self.profiler.get_em(pod_1.app)
+        return self.profiler.get_em(pod_1.app_name)
 
     def get_poc(self, pods: list[Pod]) -> CPUCores:
         # Equation (8)

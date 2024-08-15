@@ -6,13 +6,18 @@ from models import Node, Pod, Cluster
 
 class Scheduler:
     def __init__(
-        self, cluster: Cluster, online_weight: float, offline_weight: float
+        self,
+        cluster: Cluster,
+        inf_predictor: InterferencePredictor,
+        res_predictor: ResourceUsagePredictor,
+        online_weight: float = 0.5,
+        offline_weight: float = 0.5,
     ) -> None:
         self.cluster = cluster
         self.online_weight = online_weight
         self.offline_weight = offline_weight
-        self.inf_predictor = InterferencePredictor("", "")
-        self.res_predictor = ResourceUsagePredictor("")
+        self.inf_predictor = inf_predictor
+        self.res_predictor = res_predictor
         self.pods_cached: dict[NodeName, list[Pod]] = {}
 
     def score(
@@ -21,7 +26,9 @@ class Scheduler:
         new_pod: Pod,
     ) -> NodeScore:
         # Equation (11)
-        pods: list[Pod] = node.pods + self.pods_cached[node.name] + [new_pod]
+        pods: list[Pod] = (
+            list(node.pods.values()) + self.pods_cached.get(node.name, []) + [new_pod]
+        )
         poc = self.res_predictor.get_poc(pods)
         pom = self.res_predictor.get_pom(pods)
         node_cpu_cap, node_mem_cap = node.cpu_cap, node.mem_cap
@@ -29,8 +36,8 @@ class Scheduler:
         node_mem_util = pom / node_mem_cap
         ct_sum, psi_sum = [], []
         for pod in pods:
-            app = self.cluster.apps[pod.app]
-            app_name = app.name
+            app_name = pod.app_name
+            app = self.cluster.get_app(app_name)
             pod_cpu_util = app.get_p95_pod_cpu_util()
             pod_mem_util = app.get_p95_pod_mem_util()
             qps = app.qps / app.get_pod_counts()
@@ -72,7 +79,7 @@ class Scheduler:
                 if score > max_score:
                     max_score = score
                     selected_node = node
-            # Update cluster status
+            # Update cache
             self.pods_cached[selected_node.name] = self.pods_cached.get(
                 selected_node.name, []
             ) + [pod]

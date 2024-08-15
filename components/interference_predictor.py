@@ -1,9 +1,16 @@
 from .interference_profiler import InterferenceProfiler
 from models.types import *
 
+ModelName = str
+ModelPath = str
+
 
 class InterferencePredictor:
-    def __init__(self, ls_model_data: str, be_model_data: str) -> None:
+    def __init__(
+        self,
+        ls_model_data: dict[ModelName, ModelPath],
+        be_model_data: dict[ModelName, ModelPath],
+    ) -> None:
         self.profiler = InterferenceProfiler(ls_model_data, be_model_data)
 
     def get_ri_psi(

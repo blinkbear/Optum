@@ -18,7 +18,7 @@ class Pod:
         self.name = name
         self.node_name = node_name
         self.type = type
-        self.app = app
+        self.app_name = app
         self.cpu_requests = cpu_requests
         self.cpu_usage = cpu_usage
         self.mem_requests = mem_requests

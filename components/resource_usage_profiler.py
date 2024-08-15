@@ -26,13 +26,13 @@ class ResourceUsageProfiler:
             pod_a = node.pods[pod_name_a]
             for pod_name_b in pod_names[i + 1 :]:
                 pod_b = node.pods[pod_name_b]
-                if pod_a.app == pod_b.app:
+                if pod_a.app_name == pod_b.app_name:
                     continue
                 # Equation (4)
                 ro = (pod_a.cpu_usage + pod_b.cpu_usage) / (
                     pod_a.cpu_requests + pod_b.cpu_requests
                 )
-                key = [pod_a.app, pod_b.app]
+                key = [pod_a.app_name, pod_b.app_name]
                 # Equation (5)
                 ero[key] = max(ero.get(key, 0), ro)
         return ero
@@ -83,4 +83,4 @@ class ResourceUsageProfiler:
 
     def get_em(self, app: str) -> MemInMB:
         # 100MiB is default pod size in this experiment
-        return self.mem_data.get(app, "100")
+        return self.mem_data.get(app, 100)

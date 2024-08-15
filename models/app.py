@@ -14,3 +14,5 @@ class App:
 
     def get_pod_counts(self) -> int:
         pass
+
+default_app = App("default", 0)
