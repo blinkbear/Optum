@@ -11,6 +11,10 @@ class Cluster:
 
     def update_apps(self):
         self.apps: dict[AppName, App]
+    
+    def update(self):
+        self.update_nodes()
+        self.update_apps()
 
     def update_nodes(self):
         self.nodes = k8s_client.get_all_nodes()
