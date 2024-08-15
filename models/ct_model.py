@@ -1,6 +1,6 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-from custom_types import *
+from models.types import *
 from typing import Iterable
 
 

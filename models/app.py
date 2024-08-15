@@ -1,4 +1,4 @@
-from custom_types import *
+from models.types import *
 
 
 class App:

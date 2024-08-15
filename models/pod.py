@@ -1,5 +1,5 @@
 from typing import Literal
-from custom_types import *
+from models.types import *
 
 
 class Pod:

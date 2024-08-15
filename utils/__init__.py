@@ -1,5 +1,5 @@
 from .prom import client as prom_client
-from custom_types import *
+from models.types import *
 from typing import TypeVar, Literal
 from dataclasses import dataclass
 import pickle

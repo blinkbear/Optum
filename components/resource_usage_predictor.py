@@ -1,5 +1,5 @@
 from .resource_usage_profiler import ResourceUsageProfiler
-from custom_types import CPUCores, MemInMB
+from models.types import *
 from models import Pod
 from itertools import zip_longest
 

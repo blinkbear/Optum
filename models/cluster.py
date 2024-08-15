@@ -1,6 +1,6 @@
 from utils.k8s import client as k8s_client
 import logging
-from custom_types import AppName
+from models.types import *
 from .app import App
 
 

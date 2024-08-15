@@ -1,5 +1,5 @@
 from .interference_profiler import InterferenceProfiler
-from custom_types import *
+from models.types import *
 
 
 class InterferencePredictor:

@@ -1,7 +1,7 @@
 from utils import get_pod_mem_usage
 from utils.k8s import client as k8s_client
 from models import EROTable, Node
-from custom_types import *
+from models.types import *
 import pandas as pd
 import os
 

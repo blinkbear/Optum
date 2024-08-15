@@ -1,6 +1,6 @@
 from kubernetes import config, client
 from kubernetes.client.models.v1_pod import V1Pod
-from custom_types import *
+from models.types import *
 from models import Node, Pod
 from . import parse_cpu_unit, get_pod_type
 

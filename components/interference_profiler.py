@@ -1,4 +1,4 @@
-from custom_types import *
+from models.types import *
 from utils import load_obj
 from models import PSIModel, CTModel
 
