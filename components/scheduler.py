@@ -68,9 +68,9 @@ class Scheduler:
         )
         return score
 
-    def schedule(self, new_pods: list[Pod]) -> dict[PodName, Node]:
+    def schedule(self, new_pods: list[Pod], online_qps: QPS) -> dict[PodName, Node]:
         # update cluster status
-        self.cluster.update()
+        self.cluster.update(online_qps)
         scheduling_outcome: dict[PodName, Node] = {}
         for pod in new_pods:
             max_score, selected_node = -200, None

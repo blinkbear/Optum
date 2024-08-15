@@ -1,29 +1,10 @@
 from .prom import client as prom_client
 from models.types import *
 from typing import TypeVar, Literal
-from dataclasses import dataclass
 import pickle
 from kubernetes.client.models.v1_pod import V1Pod
 
 T = TypeVar("T")
-
-
-@dataclass
-class PodMemUsage:
-    name: str
-    namespace: str
-    mem: MemInMB
-
-
-def get_pod_mem_usage() -> list[PodMemUsage]:
-    results: list[PodMemUsage] = []
-    response = prom_client.fetch_pod_mem_usage()
-    for data in response.json()["data"]["result"]:
-        name = data["metric"]["pod"]
-        namespace = data["metric"]["namespace"]
-        mem = float(data["value"][1]) / 1024 / 1024
-        results.append(PodMemUsage(name, namespace, mem))
-    return results
 
 
 def load_obj(path: str, obj_class: T) -> T:

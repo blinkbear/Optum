@@ -1,5 +1,3 @@
-from utils import get_pod_mem_usage
-from utils.k8s import client as k8s_client
 from models import EROTable, Node
 from models.types import *
 import pandas as pd
@@ -61,14 +59,14 @@ class ResourceUsageProfiler:
         for app, grp in mem_csv.groupby("app"):
             self.mem_data[app] = grp["mem"].quantile(0.95)
 
-    def update_mem(self) -> dict[AppName, MemInMB]:
-        mem_list: list[dict[str, MemInMB]] = []
+    def update_mem(self, nodes: list[Node]) -> dict[AppName, MemInMB]:
+        mem_list = []
         # In Paper it says "Max mem utilization of App × mem requests of Pod"
         # Since in experiment we keep pods in same size of pod for an App
         # I simply use P95 of mem usage of all pods of that App
-        for pod in get_pod_mem_usage():
-            app = k8s_client.get_pod_app_by_name(pod.name, pod.namespace)
-            mem_list.append({"app": app, "mem": pod.mem})
+        for node in nodes:
+            for pod in node.pods.values():
+                mem_list.append({"app": pod.app_name, "mem": pod.mem_usage})
         mem_csv = pd.DataFrame(mem_list)
         if not os.path.exists(self.mem_data_path):
             open(self.mem_data_path, "w").close()

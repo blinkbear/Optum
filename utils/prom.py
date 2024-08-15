@@ -2,6 +2,7 @@ from time import time
 import requests
 from requests import Response
 from typing import Literal
+from models.types import *
 
 
 class Client:
@@ -186,9 +187,29 @@ class Client:
         query = f'rate(container_cpu_usage_seconds_total{{node="{node}"}}[1m])'
         return self.fetch(query, "point", time=time())
 
-    def fetch_pod_mem_usage(self) -> Response:
+    def fetch_pod_mem_usage(self) -> dict[PodName, MemInMB]:
         query = f'node_namespace_pod_container:container_memory_working_set_bytes'
-        return self.fetch(query, "point", time=time())
+        response = self.fetch(query, "point", time=time())
+
+        results = {}
+        data = response.json()["data"]
+        for data in response.json()["data"]["result"]:
+            name = data["metric"]["pod"]
+            mem = float(data["value"][1]) / 1024 / 1024
+            results[name] = mem
+        return results
+    
+    def fetch_pod_cpu_usage(self) -> dict[PodName, CPUCores]:
+        query = f'node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate'
+        response = self.fetch(query, "point", time=time())
+
+        results = {}
+        data = response.json()["data"]
+        for data in response.json()["data"]["result"]:
+            name = data["metric"]["pod"]
+            cpu = float(data["value"][1])
+            results[name] = cpu
+        return results
 
 
 client = Client("http://localhost:30091")
