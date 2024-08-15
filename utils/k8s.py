@@ -60,10 +60,12 @@ class Client:
         for pod in self.v1.list_pod_for_all_namespaces().items:
             if pod.spec.node_name != node_name:
                 continue
-            if pod.spec.containers[0].resources.limits is None:
+            limits = pod.spec.containers[0].resources.limits
+            if limits is None or "cpu" not in limits:
                 continue
-            cpu_quota = parse_cpu_unit(pod.spec.containers[0].resources.limits["cpu"])
+            cpu_quota = parse_cpu_unit(limits["cpu"])
             app = pod.metadata.labels.get("app", "nan")
+            app = pod.metadata.labels.get("app-name", app)
             results[pod.metadata.name] = {"app": app, "cpu_quota": cpu_quota}
         return results
 
