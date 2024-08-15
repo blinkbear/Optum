@@ -1,15 +1,8 @@
 from kubernetes import config, client
 from kubernetes.client.models.v1_pod import V1Pod
-from bidict import bidict
 from custom_types import *
-
-App = str
-
-
-def parse_cpu_unit(k8s_cpu_str: str) -> CPUCores:
-    if k8s_cpu_str.endswith("m"):
-        return float(k8s_cpu_str[:-1]) / 1000
-    return float(k8s_cpu_str)
+from models import Node, Pod
+from . import parse_cpu_unit, get_pod_type
 
 
 class Client:
@@ -17,66 +10,49 @@ class Client:
         config.load_kube_config()
         self.v1 = client.CoreV1Api()
 
-    def get_pod_app(self, pod: V1Pod) -> str:
-        app = pod.metadata.labels.get("app", "nan")
-        app = pod.metadata.labels.get("app-name", app)
+    def get_all_nodes(self) -> dict[NodeName, Node]:
+        results = {}
+        nodes = self.v1.list_node()
+        for node in nodes.items:
+            ip = [x.address for x in node.status.addresses if x.type == "InternalIP"][0]
+            name = node.metadata.name
+            cpu_cap = parse_cpu_unit(node.status.capacity["cpu"])
+            mem_cap = float(node.status.capacity["memory"][:-2]) / 1024
+            py_node = Node(name, ip, cpu_cap, mem_cap)
+        results[name] = py_node
+        return results
+
+    def get_all_pods(self) -> dict[PodName, Pod]:
+        results = {}
+        pods = self.v1.list_pod_for_all_namespaces()
+        for pod in pods.items:
+            app = self.get_pod_app(pod)
+            name = pod.metadata.name
+            namespace = pod.metadata.namespace
+            pod_type = get_pod_type(pod)
+            node_name = pod.spec.node_name
+            limits = pod.spec.containers[0].resources.limits
+            if limits is None or "cpu" not in limits:
+                continue
+            cpu_requests = parse_cpu_unit(limits["cpu"])
+            results[name] = Pod(
+                name,
+                app,
+                node_name=node_name,
+                type=pod_type,
+                namespace=namespace,
+                cpu_requests=cpu_requests,
+            )
+        return results
+
+    def get_pod_app(self, k8s_pod: V1Pod) -> str:
+        app = k8s_pod.metadata.labels.get("app", "nan")
+        app = k8s_pod.metadata.labels.get("app-name", app)
         return app
 
     def get_pod_app_by_name(self, pod_name: str, namespace: str) -> str:
         pod = self.v1.read_namespaced_pod(name=pod_name, namespace=namespace)
         return self.get_pod_app(pod)
-
-    def get_pods(self, node: str) -> list[V1Pod]:
-        return [
-            pod
-            for pod in self.v1.list_pod_for_all_namespaces().items
-            if pod.spec.node_name == node
-        ]
-
-    def get_node_cpu_capacity(self, node_name: str) -> float:
-        nodes = self.v1.list_node()
-        for node in nodes.items:
-            if node.metadata.name == node_name:
-                return float(node.status.capacity["cpu"])
-
-    def get_node_all_node_ip(self) -> bidict:
-        node_ip_mapping = bidict({})
-        nodes = self.v1.list_node()
-        for node in nodes.items:
-            ip = [x.address for x in node.status.addresses if x.type == "InternalIP"][0]
-            node_name = node.metadata.name
-            node_ip_mapping[node_name] = ip
-        return node_ip_mapping
-
-    def get_node_mem_capacity(self, node_name: str) -> MemInMB:
-        nodes = self.v1.list_node()
-        for node in nodes.items:
-            if node.metadata.name == node_name:
-                return float(node.status.capacity["memory"][:-2]) / 1024
-
-    def get_node_mem_allocated(self, node_name: str) -> MemInMB:
-        nodes = self.v1.list_node()
-        for node in nodes.items:
-            if node.metadata.name == node_name:
-                capacity = float(node.status.capacity["memory"][:-2]) / 1024
-                allocatable = float(node.status.allocatable["memory"][:-2]) / 1024
-                return capacity - allocatable
-
-    def get_all_pod_cpu_quota(
-        self, node_name: str
-    ) -> dict[str, dict[str, App | CPUCores]]:
-        results = {}
-        for pod in self.v1.list_pod_for_all_namespaces().items:
-            if pod.spec.node_name != node_name:
-                continue
-            limits = pod.spec.containers[0].resources.limits
-            if limits is None or "cpu" not in limits:
-                continue
-            cpu_quota = parse_cpu_unit(limits["cpu"])
-            app = pod.metadata.labels.get("app", "nan")
-            app = pod.metadata.labels.get("app-name", app)
-            results[pod.metadata.name] = {"app": app, "cpu_quota": cpu_quota}
-        return results
 
 
 client = Client()

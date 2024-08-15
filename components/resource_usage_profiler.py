@@ -1,7 +1,7 @@
-from utils import get_all_pod_cpu_usage, get_pod_mem_usage
+from utils import get_pod_mem_usage
 from utils.k8s import client as k8s_client
-from models import EROTable
-from custom_types import MemInMB
+from models import EROTable, Node
+from custom_types import *
 import pandas as pd
 import os
 
@@ -19,41 +19,25 @@ class ResourceUsageProfiler:
                     value = line.split(":")[1]
                     self.ero_table[key] = float(value)
 
-    def _get_all_pod_cpu_quota(self, node: str):
-        return k8s_client.get_all_pod_cpu_quota(node)
-
-    def get_node_ero(self, node: str) -> EROTable:
-        pods_usage = get_all_pod_cpu_usage(node)
-        pods_quota = self._get_all_pod_cpu_quota(node)
-        pods_usage: dict[str, dict[str, float | str]] = {
-            x: {"app": pods_quota[x]["app"], "cpu_usage": pods_usage[x]}
-            for x in pods_usage
-            if x in pods_quota
-        }
-
-        pod_names = list(pods_usage.keys())
+    def get_node_ero(self, node: Node) -> EROTable:
         ero = EROTable()
-        for i, pod_name_a in enumerate(pod_names):
-            app_a = pods_usage[pod_name_a]["app"]
-            for j in range(i, len(pod_names)):
-                pod_name_b = pod_names[j]
-                app_b = pods_usage[pod_name_b]["app"]
-                if app_a == app_b:
+        pod_names = list(node.pods.keys())
+        for i, pod_name_a in enumerate(pod_names[:-1]):
+            pod_a = node.pods[pod_name_a]
+            for pod_name_b in pod_names[i + 1 :]:
+                pod_b = node.pods[pod_name_b]
+                if pod_a.app == pod_b.app:
                     continue
                 # Equation (4)
-                ro = (
-                    pods_usage[pod_name_a]["cpu_usage"]
-                    + pods_usage[pod_name_b]["cpu_usage"]
-                ) / (
-                    pods_quota[pod_name_a]["cpu_quota"]
-                    + pods_quota[pod_name_b]["cpu_quota"]
+                ro = (pod_a.cpu_usage + pod_b.cpu_usage) / (
+                    pod_a.cpu_requests + pod_b.cpu_requests
                 )
-                key = [app_a, app_b]
+                key = [pod_a.app, pod_b.app]
                 # Equation (5)
                 ero[key] = max(ero.get(key, 0), ro)
         return ero
 
-    def update_ero(self, nodes: list[str]) -> EROTable:
+    def update_ero(self, nodes: list[Node]) -> EROTable:
         for node in nodes:
             ero = self.get_node_ero(node)
             for key in ero:
@@ -69,7 +53,7 @@ class ResourceUsageProfiler:
                 lines.append(f"{','.join(key)}:{self.ero_table[key]}\n")
             file.writelines(lines)
 
-    def _build_mem_data(self) -> dict[str, MemInMB]:
+    def _build_mem_data(self) -> dict[AppName, MemInMB]:
         self.mem_data: dict[str, MemInMB] = {}
         if not os.path.exists(self.mem_data_path):
             return
@@ -77,8 +61,11 @@ class ResourceUsageProfiler:
         for app, grp in mem_csv.groupby("app"):
             self.mem_data[app] = grp["mem"].quantile(0.95)
 
-    def update_mem(self) -> dict[str, MemInMB]:
+    def update_mem(self) -> dict[AppName, MemInMB]:
         mem_list: list[dict[str, MemInMB]] = []
+        # In Paper it says "Max mem utilization of App × mem requests of Pod"
+        # Since in experiment we keep pods in same size of pod for an App
+        # I simply use P95 of mem usage of all pods of that App
         for pod in get_pod_mem_usage():
             app = k8s_client.get_pod_app_by_name(pod.name, pod.namespace)
             mem_list.append({"app": app, "mem": pod.mem})

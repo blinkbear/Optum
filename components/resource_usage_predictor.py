@@ -1,11 +1,12 @@
 from .resource_usage_profiler import ResourceUsageProfiler
-from custom_types import Pod, CPUCores, MemInMB
+from custom_types import CPUCores, MemInMB
+from models import Pod
 from itertools import zip_longest
 
 
 class ResourceUsagePredictor:
-    def __init__(self, data_path: str) -> None:
-        self.profiler = ResourceUsageProfiler(data_path)
+    def __init__(self, ero_table_path: str, mem_data_path: str) -> None:
+        self.profiler = ResourceUsageProfiler(ero_table_path, mem_data_path)
 
     def get_ec(self, pod_1: Pod, pod_2: Pod) -> CPUCores:
         ero = self.profiler.get_ero(pod_1.app, pod_2.app)
