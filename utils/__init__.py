@@ -1,10 +1,10 @@
-from k8s import client as k8s_client
-from prom import client as prom_client
+from .k8s import client as k8s_client
+from .prom import client as prom_client
 from custom_types import *
 from typing import TypeVar
 import pickle
 
-node_ip_mapping = k8s_client.get_all_node_ip()
+node_ip_mapping = k8s_client.get_node_all_node_ip()
 T = TypeVar("T")
 
 
@@ -47,28 +47,35 @@ def get_ls_pods(node: str) -> dict[PodName, Pod]:
     return results
 
 
-def get_cpu_capacity(node: str) -> CPUCores:
-    return k8s_client.get_cpu_capacity(node)
+def get_node_cpu_capacity(node: str) -> CPUCores:
+    return k8s_client.get_node_cpu_capacity(node)
 
 
-def get_mem_capacity(node: str) -> MemInMB:
-    return k8s_client.get_mem_capacity(node)
+def get_node_mem_capacity(node: str) -> MemInMB:
+    return k8s_client.get_node_mem_capacity(node)
 
 
 def get_node_cpu_usage(node: str) -> UsedCores:
     response = prom_client.fetch_node_cpu_usage([node_ip_mapping[node]])
     utilization = float(response.json()["data"]["result"][0]["value"][1])
-    all_cores = get_cpu_capacity(node)
+    all_cores = get_node_cpu_capacity(node)
     return utilization * all_cores
 
 
 def get_mem_allocated(node: str) -> MemInMB:
-    return k8s_client.get_mem_allocated(node)
+    return k8s_client.get_node_mem_allocated(node)
+
+
+def get_all_pod_cpu_usage(node: str) -> dict[str, UsedCores]:
+    response = prom_client.fetch_pod_cpu_usage_by_node(node)
+    return {
+        x["metric"]["pod"]: float(x["value"][1])
+        for x in response.json()["data"]["result"]
+    }
 
 
 def get_max_pod_cpu_usage(node: str) -> UsedCores:
-    response = prom_client.fetch_pod_cpu_usage_by_node(node)
-    return max([float(x["value"][1]) for x in response.json()["data"]["result"]])
+    return max([x for x in get_all_pod_cpu_usage(node).values()])
 
 
 def load_obj(path: str, obj_class: T) -> T:

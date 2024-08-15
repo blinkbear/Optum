@@ -1,6 +1,6 @@
 from custom_types import *
 from utils import load_obj
-from models.profiler import LSProfiler, BEProiler
+from models.profiler import LSInterferenceProfiler, BEInterferenceProiler
 
 ModelName = str
 ModelPath = str
@@ -12,14 +12,14 @@ class InterferenceProfiler:
         ls_model_data: dict[ModelName, ModelPath],
         be_model_data: dict[ModelName, ModelPath],
     ) -> None:
-        self.ls_models: dict[str, LSProfiler] = {}
-        self.be_models: dict[str, BEProiler] = {}
+        self.ls_models: dict[str, LSInterferenceProfiler] = {}
+        self.be_models: dict[str, BEInterferenceProiler] = {}
         for name in ls_model_data:
             path = ls_model_data[name]
-            self.ls_models[name] = load_obj(path, LSProfiler)
+            self.ls_models[name] = load_obj(path, LSInterferenceProfiler)
         for name in be_model_data:
             path = be_model_data[name]
-            self.be_models[name] = load_obj(path, BEProiler)
+            self.be_models[name] = load_obj(path, BEInterferenceProiler)
 
     def ls_profile(
         self,
