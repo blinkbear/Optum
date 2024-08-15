@@ -46,7 +46,7 @@ class InterferenceProfiler:
         node_mem_util: Utilization,
         pod_cpu_util: Utilization,
         pod_mem_util: Utilization,
-    ) -> JCT:
+    ) -> CT:
         if node_cpu_util > 1:
             return 1.0
         if app not in self.be_models:

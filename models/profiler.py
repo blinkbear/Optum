@@ -1,6 +1,6 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-from custom_types import AccyScore, Utilization, QPS, PSI, JCT
+from custom_types import AccyScore, Utilization, QPS, PSI, CT
 from typing import Iterable
 
 
@@ -31,7 +31,7 @@ class BEInterferenceProiler:
     def train(
         self,
         x: Iterable[tuple[HostCPUUtil, HostMemUtil, PodCPUUtil, PodMemUtil]],
-        y: Iterable[JCT],
+        y: Iterable[CT],
     ) -> AccyScore:
         """Train BE interference profiler
 
@@ -49,7 +49,7 @@ class BEInterferenceProiler:
 
     def predict(
         self, x: Iterable[tuple[HostCPUUtil, HostMemUtil, PodCPUUtil, PodMemUtil]]
-    ) -> Iterable[JCT]:
+    ) -> Iterable[CT]:
         return self.model.predict(x)
 
 

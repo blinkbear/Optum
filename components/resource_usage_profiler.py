@@ -1,4 +1,4 @@
-from utils import get_all_pod_cpu_usage, timer, get_pod_mem_usage
+from utils import get_all_pod_cpu_usage, get_pod_mem_usage
 from utils.k8s import client as k8s_client
 from models.profiler import EROTable
 from custom_types import MemInMB
@@ -19,11 +19,9 @@ class ResourceUsageProfiler:
                     value = line.split(":")[1]
                     self.ero_table[key] = float(value)
 
-    @timer("ResourceUsageProfiler:GetAllPodCPUQuota")
     def _get_all_pod_cpu_quota(self, node: str):
         return k8s_client.get_all_pod_cpu_quota(node)
 
-    @timer("ResourceUsageProfiler:GetNodeERO")
     def get_node_ero(self, node: str) -> EROTable:
         pods_usage = get_all_pod_cpu_usage(node)
         pods_quota = self._get_all_pod_cpu_quota(node)
@@ -55,7 +53,6 @@ class ResourceUsageProfiler:
                 ero[key] = max(ero.get(key, 0), ro)
         return ero
 
-    @timer("ResourceUsageProfiler:UpdateERO")
     def update_ero(self, nodes: list[str]) -> EROTable:
         for node in nodes:
             ero = self.get_node_ero(node)
@@ -80,7 +77,6 @@ class ResourceUsageProfiler:
         for app, grp in mem_csv.groupby("app"):
             self.mem_data[app] = grp["mem"].quantile(0.95)
 
-    @timer("ResourceUsageProfiler:UpdateMem")
     def update_mem(self) -> dict[str, MemInMB]:
         mem_list: list[dict[str, MemInMB]] = []
         for pod in get_pod_mem_usage():

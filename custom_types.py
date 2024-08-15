@@ -6,7 +6,8 @@ UsedCores = float
 Utilization = float
 # PSI range: 0 - 1
 PSI = float
-JCT = float
+# Completion time is also normalized to: 0 - 1
+CT = float
 AccyScore = float
 QPS = float
 
