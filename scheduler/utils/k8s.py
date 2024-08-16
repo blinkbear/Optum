@@ -2,7 +2,8 @@ from kubernetes import config, client
 from kubernetes.client.models.v1_pod import V1Pod
 from ..models.types import *
 from ..models import Node, Pod
-from . import parse_cpu_unit, get_pod_type
+from . import parse_cpu_unit
+from typing import Literal
 
 
 class Client:
@@ -22,6 +23,13 @@ class Client:
         results[name] = py_node
         return results
 
+    def get_pod_type(self, k8s_pod: V1Pod, app_name: str) -> Literal["be", "ls"]:
+        if k8s_pod.metadata.namespace not in ["hotel-reserv", "social-network"]:
+            return "be"
+        if app_name == "nan":
+            return "be"
+        return "ls"
+
     def get_all_pods(self) -> dict[PodName, Pod]:
         results = {}
         pods = self.v1.list_pod_for_all_namespaces()
@@ -29,7 +37,7 @@ class Client:
             app = self.get_pod_app(pod)
             name = pod.metadata.name
             namespace = pod.metadata.namespace
-            pod_type = get_pod_type(pod)
+            pod_type = self.get_pod_type(pod, app)
             node_name = pod.spec.node_name
             limits = pod.spec.containers[0].resources.limits
             if limits is None or "cpu" not in limits:

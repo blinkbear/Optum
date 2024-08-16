@@ -40,7 +40,6 @@ class Scheduler:
             app = self.cluster.get_app(app_name)
             pod_cpu_util = app.get_p95_pod_cpu_util()
             pod_mem_util = app.get_p95_pod_mem_util()
-            qps = app.qps / app.get_pod_counts()
             if pod.type == "be":
                 ct = self.inf_predictor.get_ri_ct(
                     app_name,
@@ -51,6 +50,7 @@ class Scheduler:
                 )
                 ct_sum.append(ct)
             elif pod.type == "ls":
+                qps = app.qps / app.get_pod_counts()
                 psi = self.inf_predictor.get_ri_psi(
                     app_name,
                     pod_cpu_util,

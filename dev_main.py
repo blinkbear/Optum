@@ -4,15 +4,28 @@ from scheduler.components.scheduler import (
     ResourceUsagePredictor,
 )
 from scheduler.models import Pod, Cluster
+from scheduler.utils import create_apps_from_data
 
-# inf_pred = InterferencePredictor({}, {})
-# res_pred = ResourceUsagePredictor("data/ero_table", "data/mem_table")
+ls_models = {
+    "frontend": "data/models/frontend.ls",
+    "geo": "data/models/geo.ls",
+    "profile": "data/models/profile.ls",
+    "rate": "data/models/rate.ls",
+    "reservation": "data/models/reservation.ls",
+    "search": "data/models/search.ls",
+}
+be_models = {
+    "pythonpi": "data/models/pythonpi.be"
+}
+inf_pred = InterferencePredictor(ls_models, be_models)
+res_pred = ResourceUsagePredictor("data/ero_table", "data/mem_table")
 
-# cluster = Cluster(["slave9"], [])
-# scheduler = Scheduler(cluster, inf_pred, res_pred)
-# print(scheduler.schedule([Pod("test", "test", cpu_requests=1, mem_requests=1024)], 100))
+apps = create_apps_from_data("data/understanding_11/hardware_data.csv")
+cluster = Cluster(["k8s-bk-3", "k8s-bk-6", "k8s-bk-8", "k8s-bk-x"], apps)
+scheduler = Scheduler(cluster, inf_pred, res_pred)
+print(scheduler.schedule([Pod("test", "frontend", cpu_requests=1, mem_requests=1024)], 100)["test"].name)
 
-from scheduler.components.interference_profiler import InterferenceProfiler
+# from scheduler.components.interference_profiler import InterferenceProfiler
 
 # InterferenceProfiler.train_ls(
 #     "data/understanding_11/hardware_data.csv",
@@ -26,7 +39,3 @@ from scheduler.components.interference_profiler import InterferenceProfiler
 #     "data/understanding_11/jct_data.csv",
 #     "data/models",
 # )
-
-from scheduler.utils import create_apps_from_data
-
-create_apps_from_data("data/understanding_11/hardware_data.csv")

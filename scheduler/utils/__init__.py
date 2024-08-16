@@ -1,8 +1,7 @@
 from ..models.types import *
 from ..models import App
-from typing import TypeVar, Literal
+from typing import TypeVar
 import pickle
-from kubernetes.client.models.v1_pod import V1Pod
 import pandas as pd
 
 T = TypeVar("T")
@@ -24,13 +23,6 @@ def parse_cpu_unit(k8s_cpu_str: str) -> CPUCores:
         return float(k8s_cpu_str[:-1]) / 1000
     return float(k8s_cpu_str)
 
-
-def get_pod_type(k8s_pod: V1Pod) -> Literal["be", "ls"]:
-    return (
-        "be"
-        if k8s_pod.metadata.namespace not in ["hotel-reserv", "social-network"]
-        else "ls"
-    )
 
 
 def create_apps_from_data(data_path: str) -> dict[AppName, App]:

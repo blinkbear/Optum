@@ -2,6 +2,7 @@ from ..models.types import *
 from ..models import Pod
 from scipy.optimize import curve_fit
 from typing import Literal
+import pandas as pd
 
 
 def util_linear(x, a, b):
@@ -19,7 +20,6 @@ class App:
         self.app_type = app_type
 
         if app_type == "be":
-            print(self.data[0.0])
             return
         x, cpu_y, mem_y = [], [], []
         for qps, util in self.data.items():
@@ -28,7 +28,6 @@ class App:
             mem_y.append(util.mem_util)
         self.pred_cpu, _ = curve_fit(util_linear, x, cpu_y)
         self.pred_mem, _ = curve_fit(util_linear, x, mem_y)
-        print(self.name, self.pred_cpu, self.pred_mem)
 
     def get_p95_pod_cpu_util(self) -> Utilization:
         if self.app_type == "be":
@@ -49,3 +48,28 @@ class App:
 
     def set_qps(self, qps: float) -> None:
         self.qps = qps
+
+
+class NanApp(App):
+    def __init__(self) -> None:
+        self.pods: list[Pod] = []
+
+    def get_p95_pod_cpu_util(self) -> Utilization:
+        return pd.Series(
+            [
+                pod.cpu_usage / pod.cpu_requests
+                for pod in self.pods
+                if pod.cpu_requests is not None
+            ]
+        ).quantile(0.95)
+
+    def get_p95_pod_mem_util(self) -> Utilization:
+        return pd.Series(
+            [
+                pod.mem_usage / pod.mem_requests
+                for pod in self.pods
+                if pod.mem_requests is not None
+            ]
+        ).quantile(0.95)
+
+nan_app = NanApp()

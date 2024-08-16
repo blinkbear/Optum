@@ -118,5 +118,5 @@ class InterferenceProfiler:
         x = data[["node_cpu", "node_mcp", "cpu_usage", "mem_usage"]]
         x = x.apply(lambda x: list(x), axis=1).tolist()
         model = CTModel()
-        print(model.train(x, y))
-        save_obj(f"{model_path}/python-pi.be", model)
+        model.train(x, y)
+        save_obj(f"{model_path}/pythonpi.be", model)
