@@ -1,7 +1,7 @@
 from kubernetes import config, client
 from kubernetes.client.models.v1_pod import V1Pod
-from models.types import *
-from models import Node, Pod
+from ..models.types import *
+from ..models import Node, Pod
 from . import parse_cpu_unit, get_pod_type
 
 
@@ -45,12 +45,14 @@ class Client:
             )
         return results
 
-    def get_pod_app(self, k8s_pod: V1Pod) -> str:
+    def get_pod_app(self, k8s_pod: V1Pod) -> AppName:
+        if "pythonpi" in k8s_pod.metadata.name:
+            return "pythonpi"
         app = k8s_pod.metadata.labels.get("app", "nan")
         app = k8s_pod.metadata.labels.get("app-name", app)
         return app
 
-    def get_pod_app_by_name(self, pod_name: str, namespace: str) -> str:
+    def get_pod_app_by_name(self, pod_name: str, namespace: str) -> AppName:
         pod = self.v1.read_namespaced_pod(name=pod_name, namespace=namespace)
         return self.get_pod_app(pod)
 

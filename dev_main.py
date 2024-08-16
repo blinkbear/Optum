@@ -20,9 +20,13 @@ from scheduler.components.interference_profiler import InterferenceProfiler
 #     "data/models",
 # )
 
-InterferenceProfiler.train_be(
-    "data/understanding_11/hardware_data.csv",
-    "data/understanding_11/node_data.csv",
-    "data/understanding_11/jct_data.csv",
-    "data/models",
-)
+# InterferenceProfiler.train_be(
+#     "data/understanding_11/hardware_data.csv",
+#     "data/understanding_11/node_data.csv",
+#     "data/understanding_11/jct_data.csv",
+#     "data/models",
+# )
+
+from scheduler.utils import create_apps_from_data
+
+create_apps_from_data("data/understanding_11/hardware_data.csv")

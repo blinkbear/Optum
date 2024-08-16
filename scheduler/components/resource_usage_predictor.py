@@ -1,6 +1,6 @@
 from .resource_usage_profiler import ResourceUsageProfiler
-from models.types import *
-from models import Pod
+from ..models.types import *
+from ..models import Pod
 from itertools import zip_longest
 
 

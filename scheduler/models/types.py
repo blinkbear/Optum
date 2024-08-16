@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 AppName = str
 PodName = str
 NodeName = str
@@ -17,3 +19,9 @@ HostMemUtil = Utilization
 PodCPUUtil = Utilization
 PodMemUtil = Utilization
 NodeScore = float
+
+
+@dataclass
+class PodUtil:
+    mem_util: Utilization
+    cpu_util: Utilization

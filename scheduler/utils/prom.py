@@ -2,7 +2,7 @@ from time import time
 import requests
 from requests import Response
 from typing import Literal
-from models.types import *
+from ..models.types import *
 
 
 class Client:

@@ -1,7 +1,7 @@
-from models.types import *
+from ..models.types import *
 from .interference_predictor import InterferencePredictor
 from .resource_usage_predictor import ResourceUsagePredictor
-from models import Node, Pod, Cluster
+from ..models import Node, Pod, Cluster
 
 
 class Scheduler:

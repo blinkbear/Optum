@@ -1,5 +1,5 @@
 from .interference_profiler import InterferenceProfiler
-from models.types import *
+from ..models.types import *
 
 ModelName = str
 ModelPath = str

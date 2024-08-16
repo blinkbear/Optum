@@ -1,6 +1,6 @@
-from models.types import *
-from utils import load_obj, save_obj
-from models import PSIModel, CTModel
+from ..models.types import *
+from ..utils import load_obj, save_obj
+from ..models import PSIModel, CTModel
 import pandas as pd
 
 ModelName = str

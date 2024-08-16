@@ -1,5 +1,5 @@
 from sklearn.ensemble import RandomForestRegressor
-from models.types import *
+from ..models.types import *
 from typing import Iterable
 
 

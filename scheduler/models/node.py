@@ -1,4 +1,4 @@
-from models.types import *
+from ..models.types import *
 from .pod import Pod
 class Node:
     def __init__(self, name: str, ip: str, cpu_cap: CPUCores, mem_cap: MemInMB) -> None:

@@ -1,5 +1,5 @@
-from models import EROTable, Node
-from models.types import *
+from ..models import EROTable, Node
+from ..models.types import *
 import pandas as pd
 import os
 
