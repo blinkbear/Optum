@@ -1,5 +1,5 @@
 from ..models.types import *
-from ..utils import load_obj, save_obj
+from ..utils import load_obj, save_obj, logger
 from ..models import PSIModel, CTModel
 import pandas as pd
 
@@ -34,13 +34,14 @@ class InterferenceProfiler:
         if node_cpu_util >= 1:
             return 1.0
         if app not in self.ls_models:
+            logger.debug(f"InterferenceProfiler.ls_profile: {{{app}}} not found.")
             return 1.0
         model = self.ls_models[app]
         x = [(node_cpu_util, node_mem_util, pod_cpu_util, pod_mem_util, qps)]
         result = model.predict(x)[0]
         return max(result, 0.0)
 
-    def be_profiler(
+    def be_profile(
         self,
         app: str,
         node_cpu_util: Utilization,
@@ -51,6 +52,7 @@ class InterferenceProfiler:
         if node_cpu_util > 1:
             return 1.0
         if app not in self.be_models:
+            logger.debug(f"InterferenceProfiler.be_profile: {{{app}}} not found.")
             return 1.0
         model = self.be_models[app]
         x = [(node_cpu_util, node_mem_util, pod_cpu_util, pod_mem_util)]

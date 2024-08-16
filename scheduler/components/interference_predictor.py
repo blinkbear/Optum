@@ -36,6 +36,6 @@ class InterferencePredictor:
         node_mem_util: Utilization,
     ) -> CT:
         # Equation (10)
-        return self.profiler.be_profiler(
+        return self.profiler.be_profile(
             app, node_cpu_util, node_mem_util, pod_cpu_util, pod_mem_util
         )

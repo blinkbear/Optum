@@ -1,6 +1,6 @@
 from ..utils.k8s import client as k8s_client
 from ..utils.prom import client as prom_client
-import logging
+from ..utils import logger
 from ..models.types import *
 from ..models import Node, App
 from .app import App, nan_app
@@ -18,14 +18,20 @@ class Cluster:
         return self.nodes[node_name]
 
     def update(self, online_qps: QPS):
-        self.nodes = k8s_client.get_all_nodes()
+        self.nodes: dict[NodeName, Node] = {}
+        nodes = k8s_client.get_all_nodes()
         nan_app.pods.clear()
         for app in self.apps.values():
             app.pods.clear()
             app.set_qps(online_qps)
         for name in self.node_names:
-            if name not in self.node_names:
-                logging.warn(f"Cluster:Failed to fetch info of node {name}.")
+            if name not in nodes:
+                logger.warn(f"Cluster.update: Failed to fetch info of [{name}]")
+                continue
+            self.nodes[name] = nodes[name]
+        logger.debug(
+            f"Cluster.update: Cluster gets nodes [{','.join([x.name for x in self.nodes.values()])}]"
+        )
         pods = k8s_client.get_all_pods()
         pod_mem_usages = prom_client.fetch_pod_mem_usage()
         pod_cpu_usages = prom_client.fetch_pod_cpu_usage()
@@ -35,8 +41,11 @@ class Cluster:
             pod.mem_usage = pod_mem_usages.get(pod.name, 0)
             pod.cpu_usage = pod_cpu_usages.get(pod.name, 0)
             self.nodes[pod.node_name].pods[pod.name] = pod
+            logger.debug(f"Cluster.update: Assign <{pod.name}> to [{pod.node_name}]")
             app = self.get_app(pod.app_name)
             if app is not None:
                 app.pods.append(pod)
+                logger.debug(f"Cluster.update: Assign <{pod.name}> to {{{app.name}}}")
             else:
                 nan_app.pods.append(pod)
+                logger.debug(f"Cluster.update: Assign <{pod.name}> to {{nan}}")

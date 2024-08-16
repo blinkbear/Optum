@@ -2,6 +2,7 @@ from .resource_usage_profiler import ResourceUsageProfiler
 from ..models.types import *
 from ..models import Pod
 from itertools import zip_longest
+from ..utils import logger
 
 
 class ResourceUsagePredictor:
@@ -14,16 +15,26 @@ class ResourceUsagePredictor:
         return ero * (pod_1.cpu_requests + pod_2.cpu_requests)
 
     def get_em(self, pod_1: Pod) -> MemInMB:
-        return self.profiler.get_em(pod_1.app_name)
+        em = self.profiler.get_em(pod_1.app_name)
+        logger.debug(f"ResourceUsagePredictor.get_em: EM of <{pod_1.name}> is {em}")
+        return em
 
     def get_poc(self, pods: list[Pod]) -> CPUCores:
         # Equation (8)
         poc = 0
         for pod_1, pod_2 in zip_longest(pods[0::2], pods[1::2]):
             if pod_2 is None:
-                poc += pod_1.cpu_requests
+                ec = pod_1.cpu_requests
+                logger.debug(
+                    f"ResourceUsagePredictor.get_poc: EC of <{pod_1.name}> is {ec}"
+                )
             else:
-                poc += self.get_ec(pod_1, pod_2)
+                ec = self.get_ec(pod_1, pod_2)
+                logger.debug(
+                    f"ResourceUsagePredictor.get_poc: EC of "
+                    f"<{pod_1.name}> and <{pod_2.name}> is {ec}"
+                )
+            poc += ec
         return poc
 
     def get_pom(self, pods: list[Pod]) -> MemInMB:

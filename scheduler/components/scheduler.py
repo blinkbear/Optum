@@ -2,6 +2,7 @@ from ..models.types import *
 from .interference_predictor import InterferencePredictor
 from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
+from ..utils import logger
 
 
 class Scheduler:
@@ -30,7 +31,13 @@ class Scheduler:
             list(node.pods.values()) + self.pods_cached.get(node.name, []) + [new_pod]
         )
         poc = self.res_predictor.get_poc(pods)
+        logger.debug(
+            f"Scheduler.score: POC of <{new_pod.name}> on [{node.name}] is {poc}"
+        )
         pom = self.res_predictor.get_pom(pods)
+        logger.debug(
+            f"Scheduler.score: POM of <{new_pod.name}> on [{node.name}] is {pom}"
+        )
         node_cpu_cap, node_mem_cap = node.cpu_cap, node.mem_cap
         node_cpu_util = poc / node_cpu_cap
         node_mem_util = pom / node_mem_cap
@@ -48,6 +55,7 @@ class Scheduler:
                     node_cpu_util,
                     node_mem_util,
                 )
+                logger.debug(f"Scheduler.score: Computed CT for <{pod.name}> is {ct}")
                 ct_sum.append(ct)
             elif pod.type == "ls":
                 qps = app.qps / app.get_pod_counts()
@@ -59,6 +67,7 @@ class Scheduler:
                     node_mem_util,
                     qps,
                 )
+                logger.debug(f"Scheduler.score: Computed PSI for <{pod.name}> is {psi}")
                 psi_sum.append(psi)
         ct_sum, psi_sum = sum(ct_sum), sum(psi_sum)
         score = (
@@ -66,6 +75,7 @@ class Scheduler:
             - self.online_weight * psi_sum
             - self.offline_weight * ct_sum
         )
+        logger.info(f"Scheduler.score:Node {node.name} get score {score}")
         return score
 
     def schedule(self, new_pods: list[Pod], online_qps: QPS) -> dict[PodName, Node]:

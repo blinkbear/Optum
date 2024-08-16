@@ -4,9 +4,10 @@ from ..models.types import *
 from ..models import Node, Pod
 from . import parse_cpu_unit
 from typing import Literal
+from ..utils import logger
 
 
-class Client:
+class K8sClient:
     def __init__(self) -> None:
         config.load_kube_config()
         self.v1 = client.CoreV1Api()
@@ -14,13 +15,14 @@ class Client:
     def get_all_nodes(self) -> dict[NodeName, Node]:
         results = {}
         nodes = self.v1.list_node()
+        logger.debug(f"K8sClient.get_all_nodes: Get {len(nodes.items)} nodes")
         for node in nodes.items:
             ip = [x.address for x in node.status.addresses if x.type == "InternalIP"][0]
             name = node.metadata.name
             cpu_cap = parse_cpu_unit(node.status.capacity["cpu"])
             mem_cap = float(node.status.capacity["memory"][:-2]) / 1024
             py_node = Node(name, ip, cpu_cap, mem_cap)
-        results[name] = py_node
+            results[name] = py_node
         return results
 
     def get_pod_type(self, k8s_pod: V1Pod, app_name: str) -> Literal["be", "ls"]:
@@ -33,6 +35,7 @@ class Client:
     def get_all_pods(self) -> dict[PodName, Pod]:
         results = {}
         pods = self.v1.list_pod_for_all_namespaces()
+        logger.debug(f"K8sClient.get_all_pods: Get {len(pods.items)} pods")
         for pod in pods.items:
             app = self.get_pod_app(pod)
             name = pod.metadata.name
@@ -60,9 +63,5 @@ class Client:
         app = k8s_pod.metadata.labels.get("app-name", app)
         return app
 
-    def get_pod_app_by_name(self, pod_name: str, namespace: str) -> AppName:
-        pod = self.v1.read_namespaced_pod(name=pod_name, namespace=namespace)
-        return self.get_pod_app(pod)
 
-
-client = Client()
+client = K8sClient()

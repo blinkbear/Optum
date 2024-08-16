@@ -1,5 +1,6 @@
 from ..models import EROTable, Node
 from ..models.types import *
+from ..utils import logger
 import pandas as pd
 import os
 
@@ -36,6 +37,9 @@ class ResourceUsageProfiler:
         return ero
 
     def update_ero(self, nodes: list[Node]) -> EROTable:
+        logger.debug(
+            f"ResourceUsageProfiler.update_ero: Updating [{','.join([x.name for x in nodes])}]"
+        )
         for node in nodes:
             ero = self.get_node_ero(node)
             for key in ero:
@@ -60,6 +64,9 @@ class ResourceUsageProfiler:
             self.mem_data[app] = grp["mem"].quantile(0.95)
 
     def update_mem(self, nodes: list[Node]) -> dict[AppName, MemInMB]:
+        logger.debug(
+            f"ResourceUsageProfiler.update_mem: Updating [{','.join([x.name for x in nodes])}]"
+        )
         mem_list = []
         # In Paper it says "Max mem utilization of App × mem requests of Pod"
         # Since in experiment we keep pods in same size of pod for an App

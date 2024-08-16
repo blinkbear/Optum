@@ -3,9 +3,10 @@ import requests
 from requests import Response
 from typing import Literal
 from ..models.types import *
+from ..utils import logger
 
 
-class Client:
+class PromClient:
     """Middleware that used to communicate with prometheus."""
 
     def __init__(self, host: str) -> None:
@@ -190,6 +191,8 @@ class Client:
     def fetch_pod_mem_usage(self) -> dict[PodName, MemInMB]:
         query = f'node_namespace_pod_container:container_memory_working_set_bytes'
         response = self.fetch(query, "point", time=time())
+        logger.debug(f"PromClient.fetch_pod_mem_usage: Query is {query}")
+        logger.debug(f"PromClient.fetch_pod_mem_usage: Url is {response.url}")
 
         results = {}
         data = response.json()["data"]
@@ -202,6 +205,8 @@ class Client:
     def fetch_pod_cpu_usage(self) -> dict[PodName, CPUCores]:
         query = f'node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate'
         response = self.fetch(query, "point", time=time())
+        logger.debug(f"PromClient.fetch_pod_cpu_usage: Query is {query}")
+        logger.debug(f"PromClient.fetch_pod_cpu_usage: Url is {response.url}")
 
         results = {}
         data = response.json()["data"]
@@ -212,4 +217,4 @@ class Client:
         return results
 
 
-client = Client("http://localhost:30090")
+client = PromClient("http://localhost:30090")
