@@ -1,4 +1,3 @@
-from .prom import client as prom_client
 from models.types import *
 from typing import TypeVar, Literal
 import pickle
