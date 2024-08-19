@@ -4,6 +4,7 @@ from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
 from ..utils import logger
 from ..utils.k8s import client as k8s_client
+import threading
 
 SCHEDULER_NAME = "optum-scheduler"
 
@@ -31,6 +32,10 @@ class Scheduler:
     ) -> NodeScore:
         # Equation (11)
         pods: list[Pod] = list(node.pods.values()) + [new_pod]
+        # If requested CPU > 90% of Node CPU capacity, skip
+        cpu_sum = sum([x.cpu_requests for x in pods])
+        if cpu_sum > 0.9 * node.cpu_cap:
+            return -200
         poc = self.res_predictor.get_poc(pods)
         logger.debug(
             f"Scheduler.score: POC of <{new_pod.name}> on [{node.name}] is {poc}"
@@ -76,7 +81,6 @@ class Scheduler:
             - self.online_weight * psi_sum
             - self.offline_weight * ct_sum
         )
-        logger.info(f"Scheduler.score:Node {node.name} get score {score}")
         return score
 
     def select(self, pod: Pod) -> Node:
@@ -86,14 +90,28 @@ class Scheduler:
         max_score, selected_node = -200, None
         for node in self.cluster.nodes.values():
             score = self.score(node, pod)
+            logger.debug(f"Scheduler.score:Node {node.name} get score {score}")
             if score > max_score:
                 max_score = score
                 selected_node = node
         logger.info(
             f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
         )
+        self.cluster.nodes[selected_node.name].pods[pod.name] = pod
         return selected_node
-    
-    def schedule(self, online_qps: QPS):
+
+    def run(self):
+        exit_event = threading.Event()
+        thread = threading.Thread(
+            target=k8s_client.schedule_pending_pods,
+            args=(SCHEDULER_NAME, self.select, exit_event),
+        )
+        thread.start()
+        self.exit_event = exit_event
+
+    def stop(self):
+        self.exit_event.set()
+
+    def set_qps(self, online_qps: QPS):
         self.online_qps = online_qps
-        k8s_client.schedule_pending_pods(SCHEDULER_NAME, self.select)
+        logger.info(f"Scheduler.set_qps: QPS is set to {online_qps}")

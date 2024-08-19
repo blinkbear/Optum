@@ -1,10 +1,12 @@
 from kubernetes import config, client, watch
 from kubernetes.client.models import V1Pod, V1ObjectReference, V1Binding, V1ObjectMeta
+from kubernetes.client.exceptions import ApiException
 from ..models.types import *
 from ..models import Node, Pod
 from . import parse_cpu_unit
 from typing import Literal, Callable
 from ..utils import logger
+from threading import Event
 
 
 class K8sClient:
@@ -73,7 +75,10 @@ class K8sClient:
         )
 
     def schedule_pending_pods(
-        self, scheduler_name: str, node_selection: Callable[[Pod], Node]
+        self,
+        scheduler_name: str,
+        node_selection: Callable[[Pod], Node],
+        exit_event: Event,
     ):
         watcher = watch.Watch()
         for event in watcher.stream(self.v1.list_pod_for_all_namespaces):
@@ -94,10 +99,17 @@ class K8sClient:
                 meta = V1ObjectMeta()
                 meta.name = pod.name
                 binding = V1Binding(target=k8s_node, metadata=meta)
-                resp = self.v1.create_namespaced_binding(
-                    pod.namespace, binding, _preload_content=False
-                )
-                logger.debug(resp)
+                try:
+                    self.v1.create_namespaced_binding(
+                        pod.namespace, binding, _preload_content=False
+                    )
+                except ApiException as e:
+                    if e.status == "404":
+                        # Don't know why, but deleted pod also trigger pending state
+                        logger.warn(f"K8sClient.schedule_pending_pods: <{pod.name}> triggered 404")
+                        continue
+            if exit_event.is_set():
+                watcher.stop()
 
 
 client = K8sClient()

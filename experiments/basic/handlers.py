@@ -7,7 +7,6 @@ from AEFM.workload_generator.base import (
     WorkloadGeneratorInterface,
 )
 from AEFM.data_collector import DataCollectorInterface
-from AEFM.data_collector.base import BaseDataCollector
 from AEFM.utils.jaeger_fetcher import JaegerFetcher
 from AEFM.data_collector.jaeger_trace_collector import JaegerTraceCollector
 from AEFM.data_collector.wrk_throughput_collector import (
@@ -15,13 +14,13 @@ from AEFM.data_collector.wrk_throughput_collector import (
     WrkFetcher,
 )
 from AEFM.utils.prom_fetcher import PromFetcher
-from AEFM.data_collector.prom_hardware_collector import PromHardwareCollector
 from AEFM.inf_generator import InfGeneratorInterface
 from AEFM.inf_generator.base import BaseInfGenerator
 from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 
+from ..collector import MyDataCollector, MyPromCollector
 from ..optum_deployer import OptumDeployer
 from scheduler import (
     Scheduler,
@@ -54,6 +53,8 @@ def start_experiment_handler():
         [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
     )
     scheduler = Scheduler(cluster, inf_pred, res_pred)
+    scheduler.run()
+    manager.components.set("scheduler", scheduler)
     optum_deployer = OptumDeployer(
         configs_obj.namespace,
         configs_obj.pod_spec,
@@ -91,12 +92,13 @@ def start_experiment_handler():
     wrk_fetcher = WrkFetcher(configs_obj.file_paths["wrk_output_path"])
     wrk_collector = WrkThroughputCollector(wrk_fetcher)
     prom_fetcher = PromFetcher(configs_obj["prometheus_host"], configs_obj.namespace)
-    prom_collector = PromHardwareCollector(prom_fetcher)
-    data_collector = BaseDataCollector(
+    prom_collector = MyPromCollector(prom_fetcher)
+    data_collector = MyDataCollector(
         configs_obj.file_paths.collector_data,
         jaeger_collector,
         prom_collector,
         wrk_collector,
+        configs_obj.nodes["testbed"],
     )
     manager.components.set("data_collector", data_collector)
     log.info("Generating data collector success, set to components.data_collector")
@@ -157,6 +159,9 @@ def end_experiment_handler():
         inf_generator.clear(wait=False)
     data_collector = manager.components.get("data_collector")
     assert isinstance(data_collector, DataCollectorInterface)
+    scheduler = manager.components.get("scheduler")
+    assert isinstance(scheduler, Scheduler)
+    scheduler.stop()
     log.info("Waiting for data collection processes finished.")
     data_collector.wait()
 

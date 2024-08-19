@@ -1,7 +1,7 @@
 from AEFM.deployer.base import BaseDeployer
 from AEFM.models import Node, PodSpec
 from AEFM.utils.files import delete_path, create_folder
-from AEFM.utils.kubernetes import delete_by_yaml, deploy_by_yaml
+from AEFM.utils.kubernetes import delete_by_yaml, deploy_by_yaml, wait_deployment
 from AEFM.utils.kubernetes_YAMLs import KubernetesYAMLs
 from scheduler import Scheduler, SCHEDULER_NAME
 
@@ -43,10 +43,11 @@ class OptumDeployer(BaseDeployer):
         return self
 
     def deploy_under_test_yaml(self) -> BaseDeployer:
-        delete_by_yaml(self.tmp_under_test_path)
+        delete_by_yaml(self.tmp_under_test_path, wait=True, namespace=self.namespace)
         deploy_by_yaml(self.tmp_under_test_path)
         return self
 
     def reload(self, replicas: dict[str, int], online_qps: float):
         self.prepare_under_test_yaml(replicas).deploy_under_test_yaml()
-        self.scheduler.schedule(online_qps)
+        self.scheduler.set_qps(online_qps)
+        wait_deployment(self.namespace, 300)

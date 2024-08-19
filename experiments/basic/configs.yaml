@@ -1,6 +1,6 @@
 app: hotel
 app_img: nicklin9907/aefm:hotel-1.1
-duration: 330
+duration: 40
 file_paths:
   collector_data: data/understanding
   log: log/understanding.log
