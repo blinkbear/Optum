@@ -1,9 +1,9 @@
-from kubernetes import config, client
-from kubernetes.client.models.v1_pod import V1Pod
+from kubernetes import config, client, watch
+from kubernetes.client.models import V1Pod, V1ObjectReference, V1Binding, V1ObjectMeta
 from ..models.types import *
 from ..models import Node, Pod
 from . import parse_cpu_unit
-from typing import Literal
+from typing import Literal, Callable
 from ..utils import logger
 
 
@@ -39,23 +39,10 @@ class K8sClient:
         pods = self.v1.list_pod_for_all_namespaces()
         logger.debug(f"K8sClient.get_all_pods: Get {len(pods.items)} pods")
         for pod in pods.items:
-            app = self.get_pod_app(pod)
-            name = pod.metadata.name
-            namespace = pod.metadata.namespace
-            pod_type = self.get_pod_type(pod, app)
-            node_name = pod.spec.node_name
-            limits = pod.spec.containers[0].resources.limits
-            if limits is None or "cpu" not in limits:
+            optum_pod = self.parse_k8s_pod_to_optum_pod(pod)
+            if optum_pod.cpu_requests == 0:
                 continue
-            cpu_requests = parse_cpu_unit(limits["cpu"])
-            results[name] = Pod(
-                name,
-                app,
-                node_name=node_name,
-                type=pod_type,
-                namespace=namespace,
-                cpu_requests=cpu_requests,
-            )
+            results[optum_pod.name] = optum_pod
         return results
 
     def get_pod_app(self, k8s_pod: V1Pod) -> AppName:
@@ -64,6 +51,53 @@ class K8sClient:
         app = k8s_pod.metadata.labels.get("app", "nan")
         app = k8s_pod.metadata.labels.get("io.kompose.service", app)
         return app
+
+    def parse_k8s_pod_to_optum_pod(self, k8s_pod: V1Pod) -> Pod:
+        app = self.get_pod_app(k8s_pod)
+        name = k8s_pod.metadata.name
+        namespace = k8s_pod.metadata.namespace
+        pod_type = self.get_pod_type(k8s_pod, app)
+        node_name = k8s_pod.spec.node_name
+        limits = k8s_pod.spec.containers[0].resources.limits
+        if limits is None or "cpu" not in limits:
+            cpu_requests = 0
+        else:
+            cpu_requests = parse_cpu_unit(limits["cpu"])
+        return Pod(
+            name,
+            app,
+            node_name=node_name,
+            type=pod_type,
+            namespace=namespace,
+            cpu_requests=cpu_requests,
+        )
+
+    def schedule_pending_pods(
+        self, scheduler_name: str, node_selection: Callable[[Pod], Node]
+    ):
+        watcher = watch.Watch()
+        for event in watcher.stream(self.v1.list_pod_for_all_namespaces):
+            if (
+                event["type"] == "ADDED"
+                and event["object"].status.phase == "Pending"
+                and event["object"].spec.scheduler_name == scheduler_name
+            ):
+                k8s_pod = event["object"]
+                pod = self.parse_k8s_pod_to_optum_pod(k8s_pod)
+                node = node_selection(pod)
+                k8s_node = V1ObjectReference(
+                    kind="Node",
+                    api_version="v1",
+                    name=node.name,
+                    namespace=pod.namespace,
+                )
+                meta = V1ObjectMeta()
+                meta.name = pod.name
+                binding = V1Binding(target=k8s_node, metadata=meta)
+                resp = self.v1.create_namespaced_binding(
+                    pod.namespace, binding, _preload_content=False
+                )
+                logger.debug(resp)
 
 
 client = K8sClient()

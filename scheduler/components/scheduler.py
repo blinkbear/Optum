@@ -3,6 +3,9 @@ from .interference_predictor import InterferencePredictor
 from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
 from ..utils import logger
+from ..utils.k8s import client as k8s_client
+
+SCHEDULER_NAME = "optum-scheduler"
 
 
 class Scheduler:
@@ -11,15 +14,15 @@ class Scheduler:
         cluster: Cluster,
         inf_predictor: InterferencePredictor,
         res_predictor: ResourceUsagePredictor,
-        online_weight: float = 0.5,
-        offline_weight: float = 0.5,
+        online_weight: float = 0.7,
+        offline_weight: float = 0.3,
     ) -> None:
         self.cluster = cluster
         self.online_weight = online_weight
         self.offline_weight = offline_weight
         self.inf_predictor = inf_predictor
         self.res_predictor = res_predictor
-        self.pods_cached: dict[NodeName, list[Pod]] = {}
+        self.online_qps = 0
 
     def score(
         self,
@@ -27,9 +30,7 @@ class Scheduler:
         new_pod: Pod,
     ) -> NodeScore:
         # Equation (11)
-        pods: list[Pod] = (
-            list(node.pods.values()) + self.pods_cached.get(node.name, []) + [new_pod]
-        )
+        pods: list[Pod] = list(node.pods.values()) + [new_pod]
         poc = self.res_predictor.get_poc(pods)
         logger.debug(
             f"Scheduler.score: POC of <{new_pod.name}> on [{node.name}] is {poc}"
@@ -78,26 +79,21 @@ class Scheduler:
         logger.info(f"Scheduler.score:Node {node.name} get score {score}")
         return score
 
-    def schedule(self, new_pods: list[Pod], online_qps: QPS) -> dict[PodName, Node]:
+    def select(self, pod: Pod) -> Node:
         # update cluster status
-        self.cluster.update(online_qps)
+        self.cluster.update(self.online_qps)
         self.res_predictor.update(self.cluster.nodes.values())
-        scheduling_outcome: dict[PodName, Node] = {}
-        for pod in new_pods:
-            max_score, selected_node = -200, None
-            for node in self.cluster.nodes.values():
-                score = self.score(node, pod)
-                if score > max_score:
-                    max_score = score
-                    selected_node = node
-            # Update cache
-            self.pods_cached[selected_node.name] = self.pods_cached.get(
-                selected_node.name, []
-            ) + [pod]
-            scheduling_outcome[pod.name] = selected_node
-            logger.info(
-                f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
-            )
-        # Reset cache
-        self.pods_cached.clear()
-        return scheduling_outcome
+        max_score, selected_node = -200, None
+        for node in self.cluster.nodes.values():
+            score = self.score(node, pod)
+            if score > max_score:
+                max_score = score
+                selected_node = node
+        logger.info(
+            f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
+        )
+        return selected_node
+    
+    def schedule(self, online_qps: QPS):
+        self.online_qps = online_qps
+        k8s_client.schedule_pending_pods(SCHEDULER_NAME, self.select)
