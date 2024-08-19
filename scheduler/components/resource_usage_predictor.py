@@ -1,6 +1,6 @@
 from .resource_usage_profiler import ResourceUsageProfiler
 from ..models.types import *
-from ..models import Pod
+from ..models import Pod, Node
 from itertools import zip_longest
 from ..utils import logger
 
@@ -39,3 +39,6 @@ class ResourceUsagePredictor:
 
     def get_pom(self, pods: list[Pod]) -> MemInMB:
         return sum([self.get_em(pod) for pod in pods])
+    
+    def update(self, nodes: list[Node]) -> None:
+        self.profiler.update(nodes)

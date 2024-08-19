@@ -26,11 +26,13 @@ class K8sClient:
         return results
 
     def get_pod_type(self, k8s_pod: V1Pod, app_name: str) -> Literal["be", "ls"]:
-        if k8s_pod.metadata.namespace not in ["hotel-reserv", "social-network"]:
-            return "be"
-        if app_name == "nan":
-            return "be"
-        return "ls"
+        # TODO: Here only records the app that will be used in Hotel.Search
+        if app_name in ["frontend", "geo", "profile", "rate", "reservation", "search"]:
+            return "ls"
+        # if k8s_pod.metadata.namespace not in ["hotel-reserv", "social-network"]:
+        #     return "be"
+        # return "ls"
+        return "be"
 
     def get_all_pods(self) -> dict[PodName, Pod]:
         results = {}
@@ -60,7 +62,7 @@ class K8sClient:
         if "pythonpi" in k8s_pod.metadata.name:
             return "pythonpi"
         app = k8s_pod.metadata.labels.get("app", "nan")
-        app = k8s_pod.metadata.labels.get("app-name", app)
+        app = k8s_pod.metadata.labels.get("io.kompose.service", app)
         return app
 
 

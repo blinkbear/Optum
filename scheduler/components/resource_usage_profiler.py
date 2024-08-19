@@ -34,6 +34,10 @@ class ResourceUsageProfiler:
                 key = [pod_a.app_name, pod_b.app_name]
                 # Equation (5)
                 ero[key] = max(ero.get(key, 0), ro)
+        logger.debug(
+            f"ResourceUsageProfiler.get_node_ero: [{node.name}] got ERO entries: "
+            f"{','.join([str(x) for x in ero.keys()])}"
+        )
         return ero
 
     def update_ero(self, nodes: list[Node]) -> EROTable:
@@ -89,3 +93,7 @@ class ResourceUsageProfiler:
     def get_em(self, app: str) -> MemInMB:
         # 100MiB is default pod size in this experiment
         return self.mem_data.get(app, 100)
+
+    def update(self, nodes: list[Node]):
+        self.update_ero(nodes)
+        self.update_mem(nodes)

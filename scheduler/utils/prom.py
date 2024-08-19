@@ -189,7 +189,7 @@ class PromClient:
         return self.fetch(query, "point", time=time())
 
     def fetch_pod_mem_usage(self) -> dict[PodName, MemInMB]:
-        query = f'node_namespace_pod_container:container_memory_working_set_bytes'
+        query = f'container_memory_working_set_bytes'
         response = self.fetch(query, "point", time=time())
         logger.debug(f"PromClient.fetch_pod_mem_usage: Query is {query}")
         logger.debug(f"PromClient.fetch_pod_mem_usage: Url is {response.url}")
@@ -203,7 +203,7 @@ class PromClient:
         return results
     
     def fetch_pod_cpu_usage(self) -> dict[PodName, CPUCores]:
-        query = f'node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate'
+        query = f'rate(container_cpu_usage_seconds_total[1m])'
         response = self.fetch(query, "point", time=time())
         logger.debug(f"PromClient.fetch_pod_cpu_usage: Query is {query}")
         logger.debug(f"PromClient.fetch_pod_cpu_usage: Url is {response.url}")

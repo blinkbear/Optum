@@ -81,6 +81,7 @@ class Scheduler:
     def schedule(self, new_pods: list[Pod], online_qps: QPS) -> dict[PodName, Node]:
         # update cluster status
         self.cluster.update(online_qps)
+        self.res_predictor.update(self.cluster.nodes.values())
         scheduling_outcome: dict[PodName, Node] = {}
         for pod in new_pods:
             max_score, selected_node = -200, None
@@ -94,6 +95,9 @@ class Scheduler:
                 selected_node.name, []
             ) + [pod]
             scheduling_outcome[pod.name] = selected_node
+            logger.info(
+                f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
+            )
         # Reset cache
         self.pods_cached.clear()
         return scheduling_outcome

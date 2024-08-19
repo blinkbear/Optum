@@ -49,3 +49,8 @@ class Cluster:
             else:
                 nan_app.pods.append(pod)
                 logger.debug(f"Cluster.update: Assign <{pod.name}> to {{nan}}")
+
+        for node in self.nodes.values():
+            logger.debug(
+                f"Cluster.update: [{node.name}] has <{','.join([pod.name for pod in node.pods.values()])}>"
+            )
