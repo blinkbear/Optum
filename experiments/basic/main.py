@@ -5,6 +5,7 @@ import logging
 from scheduler import logger
 
 logging.basicConfig(level=logging.INFO)
+logger.setLevel(logging.DEBUG)
 set_config_file("experiments/basic/configs.yaml")
 set_log_level("info")
 

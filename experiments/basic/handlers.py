@@ -20,6 +20,7 @@ from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 
+from ..offline_job import OfflineJobLauncher
 from ..collector import MyDataCollector, MyPromCollector
 from ..optum_deployer import OptumDeployer
 from scheduler import (
@@ -117,6 +118,8 @@ def start_experiment_handler():
     # Set log file location
     log.set_log_file_path(configs_obj.file_paths.log)
     log.key(f"Log file will be saved in {configs_obj.file_paths.log}.")
+    offline_job_launcher = OfflineJobLauncher(configs_obj.file_paths["offline_job_output_path"])
+    manager.components.set("offline_job_launcher", offline_job_launcher)
 
 
 @register(event="init_environment")
@@ -129,6 +132,12 @@ def start_single_test_case_handler():
     test_case = manager.data.get("current_test_case")
     assert isinstance(test_case, TestCase)
     log.key(f"Current test case: {test_case}")
+
+    instances = test_case.additional["offline_job"]
+    offline_job_launcher = manager.components.get("offline_job_launcher")
+    assert isinstance(offline_job_launcher, OfflineJobLauncher)
+    offline_job_launcher.start(instances, test_case.generate_name())
+
     workload_generator = manager.components.get("workload_generator")
     assert isinstance(workload_generator, WorkloadGeneratorInterface)
     start_time = time()
@@ -141,6 +150,9 @@ def start_single_test_case_handler():
         additional_columns=test_case.to_dict(),
     )
     manager.data.set("test_case_data", test_case_data)
+    log.debug("workload generation finished", to_file=True)
+    offline_job_launcher.join(test_case.generate_name())
+    log.debug("offline job thread finished", to_file=True)
 
 
 @register(event="start_data_collection")

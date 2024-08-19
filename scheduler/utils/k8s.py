@@ -61,10 +61,13 @@ class K8sClient:
         pod_type = self.get_pod_type(k8s_pod, app)
         node_name = k8s_pod.spec.node_name
         limits = k8s_pod.spec.containers[0].resources.limits
-        if limits is None or "cpu" not in limits:
-            cpu_requests = 0
-        else:
+        requests = k8s_pod.spec.containers[0].resources.requests
+        if limits is not None and "cpu" in limits:
             cpu_requests = parse_cpu_unit(limits["cpu"])
+        elif requests is not None and "cpu" in requests:
+            cpu_requests = parse_cpu_unit(requests["cpu"])
+        else:
+            cpu_requests = 0
         return Pod(
             name,
             app,
@@ -104,10 +107,12 @@ class K8sClient:
                         pod.namespace, binding, _preload_content=False
                     )
                 except ApiException as e:
-                    if e.status == "404":
+                    if e.status == 404:
                         # Don't know why, but deleted pod also trigger pending state
                         logger.warn(f"K8sClient.schedule_pending_pods: <{pod.name}> triggered 404")
                         continue
+                    else:
+                        raise e
             if exit_event.is_set():
                 watcher.stop()
 

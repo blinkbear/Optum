@@ -5,7 +5,7 @@ import pandas as pd
 
 class OfflineJobLauncher:
     def __init__(self, output_path: str):
-        self.hdfs_commands = "hadoop fs -rm -R hdfs://cute-serval:30900/python/compute.py; hadoop fs -copyFromLocal /home/lcy/understanding/spark-3.5.0-bin-hadoop3/python-pi/compute.py hdfs://cute-serval:30900/python/compute.py"
+        self.hdfs_commands = "hadoop fs -rm -R hdfs://cute-serval:30900/python/compute.py; hadoop fs -copyFromLocal /home/lcy/spark-3.5.0-bin-hadoop3/python-pi/compute.py hdfs://cute-serval:30900/python/compute.py"
         self.worker_thread: None | threading.Thread = None
         self.message_queue: None | queue.Queue = None
         self.output_path = output_path
@@ -21,8 +21,11 @@ class OfflineJobLauncher:
     --conf spark.kubernetes.authenticate.oauthTokenFile=/var/run/secrets/kubernetes.io/serviceaccount/token  \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.file.upload.path=/root \
+    --conf spark.kubernetes.executor.label.optum-app=pythonpi \
+    --conf spark.kubernetes.executor.label.optum-type=be \
     --conf spark.executor.memory=1g \
     --conf spark.executor.memoryOverhead=1g \
+    --conf spark.kubernetes.executor.scheduler.name=optum-scheduler \
     hdfs://172.169.8.178:30900/python/compute.py
 """
 

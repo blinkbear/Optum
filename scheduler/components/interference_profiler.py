@@ -35,7 +35,7 @@ class InterferenceProfiler:
             return 1.0
         if app not in self.ls_models:
             logger.debug(f"InterferenceProfiler.ls_profile: {{{app}}} not found.")
-            return 1.0
+            return 0
         model = self.ls_models[app]
         x = [(node_cpu_util, node_mem_util, pod_cpu_util, pod_mem_util, qps)]
         result = model.predict(x)[0]
@@ -53,7 +53,7 @@ class InterferenceProfiler:
             return 1.0
         if app not in self.be_models:
             logger.debug(f"InterferenceProfiler.be_profile: {{{app}}} not found.")
-            return 1.0
+            return 0
         model = self.be_models[app]
         x = [(node_cpu_util, node_mem_util, pod_cpu_util, pod_mem_util)]
         result = model.predict(x)[0]

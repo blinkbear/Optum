@@ -339,10 +339,10 @@ class MyDataCollector(BaseDataCollector):
         """
         self.test_case_data = test_case_data
 
-        # jct_data = self.collect_jct(test_case_data)
-        # if jct_data is None:
-        #     return
-        # log.debug("collect jct success", to_file=True)
+        jct_data = self.collect_jct(test_case_data)
+        if jct_data is None:
+            return
+        log.debug("collect jct success", to_file=True)
 
         throughput_data = self.collect_throughput(test_case_data)
         if throughput_data is None:
@@ -382,7 +382,7 @@ class MyDataCollector(BaseDataCollector):
             ToBeSavedData(throughput_data, f"{self.data_path}/throughput_data.csv"),
             ToBeSavedData(end_to_end_data, f"{self.data_path}/end_to_end_data.csv"),
             ToBeSavedData(node_data, f"{self.data_path}/node_data.csv"),
-            # ToBeSavedData(jct_data, f"{self.data_path}/jct_data.csv"),
+            ToBeSavedData(jct_data, f"{self.data_path}/jct_data.csv"),
         ]
         result = self.append_additional_and_save(
             data_list, test_case_data.additional_columns

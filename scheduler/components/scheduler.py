@@ -34,7 +34,7 @@ class Scheduler:
         pods: list[Pod] = list(node.pods.values()) + [new_pod]
         # If requested CPU > 90% of Node CPU capacity, skip
         cpu_sum = sum([x.cpu_requests for x in pods])
-        if cpu_sum > 0.9 * node.cpu_cap:
+        if cpu_sum > node.cpu_cap:
             return -200
         poc = self.res_predictor.get_poc(pods)
         logger.debug(
