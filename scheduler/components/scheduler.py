@@ -4,6 +4,7 @@ from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
 from ..utils import logger
 from ..utils.k8s import client as k8s_client
+from time import sleep
 import threading
 
 SCHEDULER_NAME = "optum-scheduler"
@@ -24,6 +25,9 @@ class Scheduler:
         self.inf_predictor = inf_predictor
         self.res_predictor = res_predictor
         self.online_qps = 0
+        self.cluster_lock = threading.Lock()
+        self.scheduling = False
+        self.updating = False
 
     def score(
         self,
@@ -84,9 +88,8 @@ class Scheduler:
         return score
 
     def select(self, pod: Pod) -> Node:
-        # update cluster status
-        self.cluster.update(self.online_qps)
-        self.res_predictor.update(self.cluster.nodes.values())
+        self.cluster_lock.acquire()
+        self.scheduling = True
         max_score, selected_node = -200, None
         for node in self.cluster.nodes.values():
             score = self.score(node, pod)
@@ -98,15 +101,29 @@ class Scheduler:
             f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
         )
         self.cluster.nodes[selected_node.name].pods[pod.name] = pod
+        self.scheduling = False
+        self.cluster_lock.release()
         return selected_node
+
+    def monitoring(self, exit_event: threading.Event):
+        while not exit_event.is_set():
+            self.cluster_lock.acquire()
+            self.cluster.update(self.online_qps)
+            self.res_predictor.update(self.cluster.nodes.values())
+            self.cluster_lock.release()
+            sleep(5)
 
     def run(self):
         exit_event = threading.Event()
-        thread = threading.Thread(
+        scheduling_thread = threading.Thread(
             target=k8s_client.schedule_pending_pods,
             args=(SCHEDULER_NAME, self.select, exit_event),
         )
-        thread.start()
+        monitoring_thread = threading.Thread(target=self.monitoring, args=(exit_event,))
+
+        scheduling_thread.start()
+        monitoring_thread.start()
+
         self.exit_event = exit_event
 
     def stop(self):

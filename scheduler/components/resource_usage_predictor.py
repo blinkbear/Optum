@@ -3,13 +3,11 @@ from ..models.types import *
 from ..models import Pod, Node
 from itertools import zip_longest
 from ..utils import logger
-from time import time
 
 
 class ResourceUsagePredictor:
     def __init__(self, ero_table_path: str, mem_data_path: str) -> None:
         self.profiler = ResourceUsageProfiler(ero_table_path, mem_data_path)
-        self._last_update = 0
 
     def get_em(self, pod_1: Pod) -> MemInMB:
         em = self.profiler.get_em(pod_1.app_name)
@@ -46,9 +44,5 @@ class ResourceUsagePredictor:
         return sum([self.get_em(pod) for pod in pods])
 
     def update(self, nodes: list[Node]) -> None:
-        if time() - self._last_update < 5:
-            logger.debug("ResourceUsagePredictor.update: Skip too frequently updates.")
-            return
         logger.info("ResourceUsagePredictor.update: Updating...")
         self.profiler.update(nodes)
-        self._last_update = time()

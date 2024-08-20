@@ -4,14 +4,12 @@ from ..utils import logger
 from ..models.types import *
 from ..models import Node, App
 from .app import App, nan_app
-from time import time
 
 
 class Cluster:
     def __init__(self, node_names: list[str], apps: dict[AppName, App]) -> None:
         self.node_names = node_names
         self.apps = apps
-        self._last_update = 0
 
     def get_app(self, app_name: str) -> App:
         return self.apps.get(app_name, nan_app)
@@ -20,9 +18,6 @@ class Cluster:
         return self.nodes[node_name]
 
     def update(self, online_qps: QPS):
-        if time() - self._last_update < 5:
-            logger.debug("Cluster.update: Skip too frequently updates.")
-            return
         self.nodes: dict[NodeName, Node] = {}
         nodes = k8s_client.get_all_nodes()
         nan_app.pods.clear()
@@ -59,4 +54,3 @@ class Cluster:
             logger.debug(
                 f"Cluster.update: [{node.name}] has <{','.join([pod.name for pod in node.pods.values()])}>"
             )
-        self._last_update = time()

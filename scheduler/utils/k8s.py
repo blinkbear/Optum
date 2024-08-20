@@ -77,6 +77,17 @@ class K8sClient:
             cpu_requests=cpu_requests,
         )
 
+    def check_pod_existence(self, k8s_pod: V1Pod) -> bool:
+        try:
+            self.v1.read_namespaced_pod(
+                name=k8s_pod.metadata.name,
+                namespace=k8s_pod.metadata.namespace,
+                _preload_content=False,
+            )
+            return True
+        except:
+            return False
+
     def schedule_pending_pods(
         self,
         scheduler_name: str,
@@ -91,6 +102,8 @@ class K8sClient:
                 and event["object"].spec.scheduler_name == scheduler_name
             ):
                 k8s_pod = event["object"]
+                if not self.check_pod_existence(k8s_pod):
+                    continue
                 pod = self.parse_k8s_pod_to_optum_pod(k8s_pod)
                 node = node_selection(pod)
                 k8s_node = V1ObjectReference(
@@ -102,17 +115,9 @@ class K8sClient:
                 meta = V1ObjectMeta()
                 meta.name = pod.name
                 binding = V1Binding(target=k8s_node, metadata=meta)
-                try:
-                    self.v1.create_namespaced_binding(
-                        pod.namespace, binding, _preload_content=False
-                    )
-                except ApiException as e:
-                    if e.status == 404:
-                        # Don't know why, but deleted pod also trigger pending state
-                        logger.warn(f"K8sClient.schedule_pending_pods: <{pod.name}> triggered 404")
-                        continue
-                    else:
-                        raise e
+                self.v1.create_namespaced_binding(
+                    pod.namespace, binding, _preload_content=False
+                )
             if exit_event.is_set():
                 watcher.stop()
 

@@ -37,6 +37,12 @@ class OptumDeployer(BaseDeployer):
             "spec.template.spec.containers[0].imagePullPolicy", "IfNotPresent"
         ).update(
             "spec.template.spec.schedulerName", SCHEDULER_NAME
+        ).update(
+            "spec.template.spec.containers[0].env",
+            [
+                {"name": "JAEGER_SAMPLE_PARAM", "value": "1"},
+                {"name": "JAEGER_SAMPLE_TYPE", "value": "ratelimiting"},
+            ],
         ).save(
             self.tmp_under_test_path
         )
@@ -48,6 +54,6 @@ class OptumDeployer(BaseDeployer):
         return self
 
     def reload(self, replicas: dict[str, int], online_qps: float):
-        self.prepare_under_test_yaml(replicas).deploy_under_test_yaml()
         self.scheduler.set_qps(online_qps)
+        self.prepare_under_test_yaml(replicas).deploy_under_test_yaml()
         wait_deployment(self.namespace, 300)
