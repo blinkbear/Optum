@@ -222,6 +222,47 @@ class MyPromCollector(PromHardwareCollector):
             processed_results.append(data)
         return pd.DataFrame(processed_results)
 
+    def collect_pod_cpi(self, start_time: float, end_time: float):
+        query = f"irate(psi_perf_monitor_cpu_cycles[1m]) / irate(psi_perf_monitor_instruction[1m])"
+        response = self.fetcher.fetch(
+            query, "range", step=1, start_time=start_time, end_time=end_time
+        )
+        log.debug(f"{__file__}: Fetch pod CPI from: {response.url}", to_file=True)
+        cpi = response.json()
+        results = []
+        if cpi["data"] and cpi["data"]["result"]:
+            for data in cpi["data"]["result"]:
+                pod = str(data["metric"]["pod_name"])
+                microservice = "-".join(pod.split("-")[:-2])
+                pod_cpi = mean([float(v[1]) for v in data["values"] if v != "NaN"])
+                results.append(
+                    {
+                        "microservice": microservice,
+                        "pod": pod,
+                        "pod_cpi": pod_cpi,
+                    }
+                )
+        return pd.DataFrame(results)
+
+    def collect_node_cpi(self, nodes: list[Node], start_time: float, end_time: float):
+        query = f"sum(node_perf_branch_instructions_total) by (instance) /sum(node_perf_cpucycles_total) by (instance)"
+        response = self.fetcher.fetch(
+            query, "range", step=1, start_time=start_time, end_time=end_time
+        )
+        log.debug(f"{__file__}: Fetch node CPI from: {response.url}", to_file=True)
+        cpi = response.json()
+        results = []
+        if cpi["data"] and cpi["data"]["result"]:
+            for data in cpi["data"]["result"]:
+                ip = str(data["metric"]["instance"]).split(":")[0]
+                node_cpi = max([float(v[1]) for v in data["values"]])
+                try:
+                    node = [n.name for n in nodes if n.ip == ip][0]
+                    results.append({"node": node, "node_cpi": node_cpi})
+                except:
+                    continue
+        return pd.DataFrame(results)
+
     def collect_pod_io_psi(
         self, microservices: list[str], start_time: float, end_time: float
     ) -> pd.DataFrame:
@@ -305,9 +346,27 @@ class MyDataCollector(BaseDataCollector):
         # ! Hardcode below
         with open(f"tmp/offline_job_understanding/{test_case_data.name}", "r") as file:
             jct = float(file.readline())
-        driver_jct = pd.DataFrame([{"pod": "driver", "jct": jct, "task_id": 0, "node": "driver"}])
-        pod_jct = pd.read_csv(f"tmp/offline_job_understanding/{test_case_data.name}.pod_jct")
+        driver_jct = pd.DataFrame(
+            [{"pod": "driver", "jct": jct, "task_id": 0, "node": "driver"}]
+        )
+        pod_jct = pd.read_csv(
+            f"tmp/offline_job_understanding/{test_case_data.name}.pod_jct"
+        )
         return pd.concat([driver_jct, pod_jct])
+
+    @try_except("Collect Pod CPI")
+    def collect_pod_cpi(self, test_case_data: TestCaseData) -> pd.DataFrame:
+        assert isinstance(self.hardware_collector, MyPromCollector)
+        return self.hardware_collector.collect_pod_cpi(
+            test_case_data.start_time, test_case_data.end_time
+        )
+
+    @try_except("Collect Node CPI")
+    def collect_node_cpi(self, test_case_data: TestCaseData) -> pd.DataFrame:
+        assert isinstance(self.hardware_collector, MyPromCollector)
+        return self.hardware_collector.collect_node_cpi(
+            self.nodes, test_case_data.start_time, test_case_data.end_time
+        )
 
     @try_except("Collect Pod PSI")
     def collect_pod_psi(
@@ -368,12 +427,23 @@ class MyDataCollector(BaseDataCollector):
             return
         log.debug("collect pod PSI success", to_file=True)
 
-        hardware_data = hardware_data.merge(pod_psi_data)
+        pod_cpi_data = self.collect_pod_cpi(test_case_data)
+        if pod_cpi_data is None:
+            return
+        log.debug("collect pod CPI success", to_file=True)
+
+        node_cpi_data = self.collect_node_cpi(test_case_data)
+        if node_cpi_data is None:
+            return
+        log.debug("collect node CPI success", to_file=True)
+
+        hardware_data = hardware_data.merge(pod_psi_data).merge(pod_cpi_data)
 
         node_data = self.collect_node(test_case_data)
         if node_data is None:
             return
         log.debug("collect node success", to_file=True)
+        node_data = node_data.merge(node_cpi_data)
 
         data_list = [
             ToBeSavedData(statistical_data, f"{self.data_path}/statistical_data.csv"),

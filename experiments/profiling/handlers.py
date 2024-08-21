@@ -2,7 +2,7 @@ from AEFM.manager import register, manager
 from AEFM import configs
 from time import time
 from AEFM.deployer import DeployerInterface
-from deployer import MyDeployer
+from .deployer import MyDeployer
 from AEFM.workload_generator.base import (
     WrkConfig,
     BaseWorkloadGenerator,
@@ -21,8 +21,8 @@ from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 from AEFM.utils.prom_fetcher import PromFetcher
-from collector import MyDataCollector, MyPromCollector
-from offline_job import OfflineJobLauncher
+from ..collector import MyDataCollector, MyPromCollector
+from ..offline_job import OfflineJobLauncher
 
 
 @register(event="start_experiment")

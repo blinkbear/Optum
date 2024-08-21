@@ -65,7 +65,7 @@ test_cases:
   - offline_job
   round:
     max: 5
-    min: 2
+    min: 1
     step: 1
   workload:
     configs:

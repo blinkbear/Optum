@@ -25,9 +25,10 @@ class OfflineJobLauncher:
     --conf spark.kubernetes.executor.label.optum-type=be \
     --conf spark.executor.memory=1g \
     --conf spark.executor.memoryOverhead=1g \
-    --conf spark.kubernetes.executor.scheduler.name=optum-scheduler \
+    --conf spark.kubernetes.executor.node.selector.aefm.role=testbed \
     hdfs://172.169.8.178:30900/python/compute.py
 """
+    # --conf spark.kubernetes.executor.scheduler.name=optum-scheduler \
 
     def worker(self, run_command, test_case_name, message: queue.Queue):
         proc = subprocess.Popen(run_command, stdout=subprocess.PIPE, shell=True)

@@ -2,9 +2,9 @@ app: hotel
 app_img: nicklin9907/aefm:hotel-1.1
 duration: 330
 file_paths:
-  collector_data: data/understanding
-  log: log/understanding.log
-  wrk_output_path: tmp/wrk_understanding
+  collector_data: data/profiling
+  log: log/profiling.log
+  wrk_output_path: tmp/wrk_profiling
   yaml_repo: $MODULE_DEFAULT/hotel
   offline_job_output_path: tmp/offline_job_understanding
 jaeger_entrance: frontend
@@ -65,7 +65,7 @@ test_cases:
   - offline_job
   round:
     max: 5
-    min: 2
+    min: 1
     step: 1
   workload:
     configs:
@@ -79,7 +79,7 @@ test_cases:
       min: 1000
       step: 1000
   offline_job:
-  - 32
-  - 64
-  - 96
-  - 128
+  - 9
+  - 18
+  - 27
+  - 36
