@@ -27,7 +27,7 @@ class ResourceCentralScheduler(BaselineScheduler):
             self.cluster.get_app(pod.app_name).get_p95_pod_cpu_util() * pod.cpu_requests
         )
         for node in self.cluster.nodes.values():
-            if not self.check_mem_avalability():
+            if not self.check_mem_avalability(node, pod):
                 continue
             # Check CPU availability
             node_requested_cpu = node.get_cpu_requested()

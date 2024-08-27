@@ -10,6 +10,7 @@ class BaselineScheduler(ABC):
     def __init__(self, cluster: Cluster) -> None:
         self.cluster_lock = threading.Lock()
         self.cluster = cluster
+        self.online_qps = 0
 
     @abstractmethod
     def select(self, pod: Pod) -> Node:

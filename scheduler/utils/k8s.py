@@ -1,9 +1,8 @@
 from kubernetes import config, client, watch
 from kubernetes.client.models import V1Pod, V1ObjectReference, V1Binding, V1ObjectMeta
-from kubernetes.client.exceptions import ApiException
 from ..models.types import *
 from ..models import Node, Pod
-from . import parse_cpu_unit
+from . import parse_cpu_unit, parse_mem_unit
 from typing import Literal, Callable
 from ..utils import logger
 from threading import Event
@@ -62,12 +61,18 @@ class K8sClient:
         node_name = k8s_pod.spec.node_name
         limits = k8s_pod.spec.containers[0].resources.limits
         requests = k8s_pod.spec.containers[0].resources.requests
-        if limits is not None and "cpu" in limits:
-            cpu_requests = parse_cpu_unit(limits["cpu"])
-        elif requests is not None and "cpu" in requests:
-            cpu_requests = parse_cpu_unit(requests["cpu"])
-        else:
-            cpu_requests = 0
+        cpu_requests = 0
+        mem_requests = 0
+        if limits is not None:
+            if "cpu" in limits:
+                cpu_requests = parse_cpu_unit(limits["cpu"])
+            if "memory" in limits:
+                mem_requests = parse_mem_unit(limits["memory"])
+        if requests is not None:
+            if "cpu" in requests:
+                cpu_requests = parse_cpu_unit(requests["cpu"])
+            if "memory" in requests:
+                mem_requests = parse_mem_unit(requests["memory"])
         return Pod(
             name,
             app,
@@ -75,6 +80,7 @@ class K8sClient:
             type=pod_type,
             namespace=namespace,
             cpu_requests=cpu_requests,
+            mem_requests=mem_requests,
         )
 
     def check_pod_existence(self, k8s_pod: V1Pod) -> bool:

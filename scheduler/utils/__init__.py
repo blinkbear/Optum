@@ -27,3 +27,13 @@ def parse_cpu_unit(k8s_cpu_str: str) -> CPUCores:
     if k8s_cpu_str.endswith("m"):
         return float(k8s_cpu_str[:-1]) / 1000
     return float(k8s_cpu_str)
+
+
+def parse_mem_unit(k8s_mem_str: str) -> MemInMB:
+    if k8s_mem_str.endswith("Ki"):
+        return float(k8s_mem_str[:-2]) / 1024
+    if k8s_mem_str.endswith("Mi"):
+        return float(k8s_mem_str[:-2])
+    if k8s_mem_str.endswith("Gi"):
+        return float(k8s_mem_str[:-2]) * 1024
+    pass
