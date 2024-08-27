@@ -223,7 +223,7 @@ class MyPromCollector(PromHardwareCollector):
         return pd.DataFrame(processed_results)
 
     def collect_pod_cpi(self, start_time: float, end_time: float):
-        query = f"irate(psi_perf_monitor_cpu_cycles[1m]) / irate(psi_perf_monitor_instruction[1m])"
+        query = f"max(psi_perf_monitor_cpu_cycles) by (pod_name) / max(psi_perf_monitor_instruction) by (pod_name)"
         response = self.fetcher.fetch(
             query, "range", step=1, start_time=start_time, end_time=end_time
         )
@@ -234,7 +234,7 @@ class MyPromCollector(PromHardwareCollector):
             for data in cpi["data"]["result"]:
                 pod = str(data["metric"]["pod_name"])
                 microservice = "-".join(pod.split("-")[:-2])
-                pod_cpi = mean([float(v[1]) for v in data["values"] if v != "NaN"])
+                pod_cpi = [float(v[1]) for v in data["values"] if v != "NaN"][-1]
                 results.append(
                     {
                         "microservice": microservice,

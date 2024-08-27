@@ -148,8 +148,7 @@ def start_single_test_case_handler():
 def start_data_collection_handler():
     data_collector = manager.components.get("data_collector")
     assert isinstance(data_collector, DataCollectorInterface)
-    # data_collector.collect_async(manager.data.get("test_case_data"))
-    data_collector.collect(manager.data.get("test_case_data"))
+    data_collector.collect_async(manager.data.get("test_case_data"))
 
 
 @register(event="end_experiment")
