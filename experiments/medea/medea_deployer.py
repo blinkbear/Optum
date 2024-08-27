@@ -3,10 +3,10 @@ from AEFM.models import Node, PodSpec
 from AEFM.utils.files import delete_path, create_folder
 from AEFM.utils.kubernetes import delete_by_yaml, deploy_by_yaml, wait_deployment
 from AEFM.utils.kubernetes_YAMLs import KubernetesYAMLs
-from scheduler.baselines import BROG_LIKE_NAME, BrogLikeScheduler
+from scheduler.baselines import MEDEA_NAME, MedeaScheduler
 
 
-class BrogLikeDeployer(BaseDeployer):
+class MedeaDeployer(BaseDeployer):
     def __init__(
         self,
         namespace: str,
@@ -14,7 +14,7 @@ class BrogLikeDeployer(BaseDeployer):
         infra_nodes: list[Node],
         testbed_nodes: list[Node],
         yaml_repo: str,
-        scheduler: BrogLikeScheduler,
+        scheduler: MedeaScheduler,
         app_img: str | None = None,
     ):
         super().__init__(
@@ -36,7 +36,7 @@ class BrogLikeDeployer(BaseDeployer):
         ).assign_containers(replicas).update(
             "spec.template.spec.containers[0].imagePullPolicy", "IfNotPresent"
         ).update(
-            "spec.template.spec.schedulerName", BROG_LIKE_NAME
+            "spec.template.spec.schedulerName", MEDEA_NAME
         ).update(
             "spec.template.spec.containers[0].env",
             [

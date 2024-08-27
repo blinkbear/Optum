@@ -97,6 +97,12 @@ class MedeaScheduler(BaselineScheduler):
         self.w2 = w2
 
     def select(self, pod: Pod) -> Node:
+        # Generate a predicted CPU usage for pod.
+        # Because after assigning pod to node, node need this data to compute
+        # its CPU usage.
+        pod.cpu_usage = (
+            self.cluster.get_app(pod.app_name).get_p95_pod_cpu_util() * pod.cpu_requests
+        )
         self.cluster_lock.acquire()
         # Since the experiment cluster is not large, we don't partition the cluster.
         nodes: list[Node] = list(self.cluster.nodes.values())
