@@ -1,11 +1,14 @@
 from .base import BaselineScheduler
 from ..models.types import *
 from ..models import Node, Cluster, Pod
+from logging import getLogger
+
+logger = getLogger("Medea")
 
 SCHEDULER_NAME = "medea-scheduler"
 
 
-def solve(r_C, r_M, Rf_C, Rf_M, w1, w2):
+def solve(r_C, r_M, Rf_C, Rf_M, w1, w2) -> list[int]:
     import numpy as np
     import scipy.optimize as opt
 
@@ -96,7 +99,7 @@ class MedeaScheduler(BaselineScheduler):
     def select(self, pod: Pod) -> Node:
         self.cluster_lock.acquire()
         # Since the experiment cluster is not large, we don't partition the cluster.
-        nodes = list(self.cluster.nodes.values())
+        nodes: list[Node] = list(self.cluster.nodes.values())
         node_cpu_free = [x.cpu_cap - x.get_cpu_usage() for x in nodes]
         node_mem_free = [x.mem_cap - x.get_mem_requested() for x in nodes]
         result = solve(
@@ -111,8 +114,11 @@ class MedeaScheduler(BaselineScheduler):
             self.w1,
             self.w2,
         )
+        selected_node = nodes[result[0]]
+        self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
-        return nodes[result[0]]
+        logger.info(f"Final selection of <{pod.name}> is [{selected_node.name}]")
+        return selected_node
 
     def run(self):
         super()._run(SCHEDULER_NAME)

@@ -2,6 +2,9 @@ from .base import BaselineScheduler
 from random import choice
 from ..models import Cluster, Pod, Node
 from ..models.types import *
+from logging import getLogger
+
+logger = getLogger("ResourceCentral")
 
 SCHEDULER_NAME = "resource-central-scheduler"
 
@@ -47,6 +50,7 @@ class ResourceCentralScheduler(BaselineScheduler):
         selected_node = choice(available_nodes)
         self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
+        logger.info(f"Final selection of <{pod.name}> is [{selected_node.name}]")
         return selected_node
 
     def run(self):

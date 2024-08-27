@@ -2,6 +2,9 @@ from .base import BaselineScheduler
 from ..models.types import *
 from ..models import Cluster, Node, Pod
 from random import choice
+from logging import getLogger
+
+logger = getLogger("BrogLike")
 
 SCHEDULER_NAME = "brog-like-scheduler"
 
@@ -26,6 +29,7 @@ class BrogLikeScheduler(BaselineScheduler):
         selected_node = choice(available_nodes)
         self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
+        logger.info(f"Final selection of <{pod.name}> is [{selected_node.name}]")
         return selected_node
 
     def run(self):
