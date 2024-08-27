@@ -22,7 +22,7 @@ from AEFM.data_collector import TestCaseData
 
 from ..offline_job import OfflineJobLauncher
 from ..collector import MyDataCollector, MyPromCollector
-from ..optum_deployer import OptumDeployer
+from ..optum_deployer import OptumDeployer, SCHEDULER_NAME
 from scheduler import (
     Scheduler,
     ResourceUsagePredictor,
@@ -119,7 +119,9 @@ def start_experiment_handler():
     # Set log file location
     log.set_log_file_path(configs_obj.file_paths.log)
     log.key(f"Log file will be saved in {configs_obj.file_paths.log}.")
-    offline_job_launcher = OfflineJobLauncher(configs_obj.file_paths["offline_job_output_path"])
+    offline_job_launcher = OfflineJobLauncher(
+        configs_obj.file_paths["offline_job_output_path"], SCHEDULER_NAME
+    )
     manager.components.set("offline_job_launcher", offline_job_launcher)
 
 

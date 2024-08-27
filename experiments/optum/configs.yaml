@@ -2,11 +2,11 @@ app: hotel
 app_img: nicklin9907/aefm:hotel-1.1
 duration: 330
 file_paths:
-  collector_data: data/understanding
-  log: log/understanding.log
-  wrk_output_path: tmp/wrk_understanding
+  collector_data: data/optum
+  log: log/optum_aefm.log
+  wrk_output_path: tmp/wrk_optum
   yaml_repo: $MODULE_DEFAULT/hotel
-  offline_job_output_path: tmp/offline_job_understanding
+  offline_job_output_path: tmp/offline_job_optum
 jaeger_entrance: frontend
 jaeger_host: http://localhost:30095
 namespace: hotel-reserv
@@ -64,7 +64,8 @@ test_cases:
   - round
   - offline_job
   round:
-    max: 5
+    # max: 5
+    max: 2
     min: 1
     step: 1
   workload:
@@ -79,7 +80,7 @@ test_cases:
       min: 1000
       step: 1000
   offline_job:
-  - 24
-  - 48
-  - 72
-  - 96
+  # - 9
+  # - 18
+  - 27
+  # - 36
