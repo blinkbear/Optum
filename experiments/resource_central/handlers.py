@@ -1,6 +1,7 @@
 from AEFM.manager import register, manager
 from AEFM import configs
 from time import time
+from AEFM.deployer import DeployerInterface
 from AEFM.workload_generator.base import (
     WrkConfig,
     BaseWorkloadGenerator,
@@ -9,10 +10,7 @@ from AEFM.workload_generator.base import (
 from AEFM.data_collector import DataCollectorInterface
 from AEFM.utils.jaeger_fetcher import JaegerFetcher
 from AEFM.data_collector.jaeger_trace_collector import JaegerTraceCollector
-from AEFM.data_collector.wrk_throughput_collector import (
-    WrkThroughputCollector,
-    WrkFetcher,
-)
+from AEFM.data_collector.wrk_throughput_collector import WrkThroughputCollector, WrkFetcher
 from AEFM.utils.prom_fetcher import PromFetcher
 from AEFM.inf_generator import InfGeneratorInterface
 from AEFM.inf_generator.base import BaseInfGenerator
@@ -20,16 +18,12 @@ from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 
+from .resource_central import ResourceCentralDeployer
 from ..offline_job import OfflineJobLauncher
 from ..collector import MyDataCollector, MyPromCollector
-from .optum_deployer import OptumDeployer, SCHEDULER_NAME
-from scheduler import (
-    Scheduler,
-    ResourceUsagePredictor,
-    InterferencePredictor,
-    Cluster,
-    create_apps_from_data,
-)
+from scheduler.baselines import ResourceCentralScheduler, RESOURCE_CENTRAL_NAME
+from scheduler.models import Cluster
+from scheduler.models.app import create_apps_from_data
 
 
 @register(event="start_experiment")
@@ -37,26 +31,14 @@ def start_experiment_handler():
     configs_obj = configs.load_configs()
     manager.data.set("configs", configs_obj)
     # Deployer setup
-    ls_models = {
-        "frontend": "data/models/frontend.ls",
-        "geo": "data/models/geo.ls",
-        "profile": "data/models/profile.ls",
-        "rate": "data/models/rate.ls",
-        "reservation": "data/models/reservation.ls",
-        "search": "data/models/search.ls",
-    }
-    be_models = {"pythonpi": "data/models/pythonpi.be"}
-    inf_pred = InterferencePredictor(ls_models, be_models)
-    res_pred = ResourceUsagePredictor("data/ero_table", "data/mem_table")
-
     apps = create_apps_from_data("data/understanding_11/hardware_data.csv")
     cluster = Cluster(
         [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
     )
-    scheduler = Scheduler(cluster, inf_pred, res_pred)
+    scheduler = ResourceCentralScheduler(cluster)
     scheduler.run()
     manager.components.set("scheduler", scheduler)
-    optum_deployer = OptumDeployer(
+    base_deployer = ResourceCentralDeployer(
         configs_obj.namespace,
         configs_obj.pod_spec,
         configs_obj.get_nodes_by_role("infra"),
@@ -65,7 +47,7 @@ def start_experiment_handler():
         scheduler,
         configs_obj.app_img,
     )
-    manager.components.set("deployer", optum_deployer)
+    manager.components.set("deployer", base_deployer)
     log.info("Generating deployer success, set to components.deployer")
     # Workload generator setup
     wrk_config = configs_obj.test_cases.workload.configs
@@ -119,8 +101,9 @@ def start_experiment_handler():
     # Set log file location
     log.set_log_file_path(configs_obj.file_paths.log)
     log.key(f"Log file will be saved in {configs_obj.file_paths.log}.")
+
     offline_job_launcher = OfflineJobLauncher(
-        configs_obj.file_paths["offline_job_output_path"], SCHEDULER_NAME
+        configs_obj.file_paths["offline_job_output_path"], RESOURCE_CENTRAL_NAME
     )
     manager.components.set("offline_job_launcher", offline_job_launcher)
 
@@ -131,7 +114,7 @@ def init_environment_handler():
     assert isinstance(configs_obj, configs.Configs)
 
     deployer = manager.components.get("deployer")
-    assert isinstance(deployer, OptumDeployer)
+    assert isinstance(deployer, DeployerInterface)
     log.info("Restaring application.")
     deployer.restart(configs_obj["app"], configs_obj["port"])
 
@@ -180,11 +163,11 @@ def end_experiment_handler():
         inf_generator.clear(wait=False)
     data_collector = manager.components.get("data_collector")
     assert isinstance(data_collector, DataCollectorInterface)
-    scheduler = manager.components.get("scheduler")
-    assert isinstance(scheduler, Scheduler)
-    scheduler.stop()
     log.info("Waiting for data collection processes finished.")
     data_collector.wait()
+    scheduler = manager.components.get("scheduler")
+    assert isinstance(scheduler, ResourceCentralScheduler)
+    scheduler.stop()
 
 
 @register(event="start_workload")
@@ -194,7 +177,7 @@ def start_workload_handler():
     configs_obj = manager.data.get("configs")
     assert isinstance(configs_obj, configs.Configs)
     assert isinstance(test_case, TestCase)
-    assert isinstance(deployer, OptumDeployer)
+    assert isinstance(deployer, ResourceCentralDeployer)
 
     deployer.reload(configs_obj["replicas"], test_case.workload.throughput)
 

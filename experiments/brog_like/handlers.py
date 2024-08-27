@@ -118,16 +118,8 @@ def init_environment_handler():
 
     deployer = manager.components.get("deployer")
     assert isinstance(deployer, DeployerInterface)
-    do_not_restart = log.countdown(
-        "Skipping process: Restart application and delete all stateful microservice",
-        10,
-        "warn",
-    )
-    if not do_not_restart:
-        log.info("Restaring application.")
-        deployer.restart(configs_obj["app"], configs_obj["port"])
-    else:
-        log.info("Application restart skipped.")
+    log.info("Restaring application.")
+    deployer.restart(configs_obj["app"], configs_obj["port"])
 
 
 @register(event="start_single_test_case")
