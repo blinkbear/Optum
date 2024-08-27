@@ -1,8 +1,8 @@
 from AEFM.data_collector.jaeger_trace_collector import JaegerTraceCollector
-from AEFM.data_collector.models import CpuUsage, MemUsage, TestCaseData
+from AEFM.data_collector.models import CpuUsage, MemUsage
 from AEFM.data_collector.wrk_throughput_collector import WrkThroughputCollector
 import pandas as pd
-from AEFM.data_collector.base import BaseDataCollector, try_except, ToBeSavedData
+from AEFM.data_collector.base import BaseDataCollector, Collection
 from AEFM.utils.logger import log
 from AEFM.data_collector.prom_hardware_collector import PromHardwareCollector
 from AEFM.models import Node
@@ -312,6 +312,7 @@ class MyDataCollector(BaseDataCollector):
         hardware_collector: MyPromCollector,
         throughput_collector: WrkThroughputCollector,
         nodes: list[Node],
+        offline_job_output_path: str,
         max_processes: int = 10,
     ) -> None:
         super().__init__(
@@ -322,62 +323,39 @@ class MyDataCollector(BaseDataCollector):
             max_processes,
         )
         self.nodes = nodes
+        self.offline_job_output_path = offline_job_output_path
 
-    @try_except("Collect node data")
-    def collect_node(self, test_case_data: TestCaseData) -> pd.DataFrame:
+        node_data = Collection(
+            "node data",
+            f"{self.data_path}/node_data.csv",
+            self.collect_node,
+        )
+        jct_data = Collection(
+            "JCT data", f"{self.data_path}/jct_data.csv", self.collect_jct
+        )
+        self.add_new_collections([node_data, jct_data])
+
+    def collect_node(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
         assert isinstance(self.hardware_collector, MyPromCollector)
 
-        cpu = self.hardware_collector.collect_node_cpu(
-            self.nodes, test_case_data.start_time, test_case_data.end_time
-        )
-        mcp = self.hardware_collector.collect_node_mcp(
-            self.nodes, test_case_data.start_time, test_case_data.end_time
-        )
-        net = self.hardware_collector.collect_node_net(
-            self.nodes, test_case_data.start_time, test_case_data.end_time
-        )
-        psi = self.hardware_collector.collect_node_psi(
-            self.nodes, test_case_data.start_time, test_case_data.end_time
-        )
-        return cpu.merge(mcp).merge(net).merge(psi)
+        cpu = self.hardware_collector.collect_node_cpu(self.nodes, start_time, end_time)
+        mcp = self.hardware_collector.collect_node_mcp(self.nodes, start_time, end_time)
+        net = self.hardware_collector.collect_node_net(self.nodes, start_time, end_time)
+        psi = self.hardware_collector.collect_node_psi(self.nodes, start_time, end_time)
+        cpi = self.hardware_collector.collect_node_cpi(self.nodes, start_time, end_time)
+        return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
 
-    @try_except("Collect JCT")
-    def collect_jct(self, test_case_data: TestCaseData) -> pd.DataFrame:
-        # ! Hardcode below
-        with open(f"tmp/offline_job_understanding/{test_case_data.name}", "r") as file:
-            jct = float(file.readline())
-        driver_jct = pd.DataFrame(
-            [{"pod": "driver", "jct": jct, "task_id": 0, "node": "driver"}]
-        )
-        pod_jct = pd.read_csv(
-            f"tmp/offline_job_understanding/{test_case_data.name}.pod_jct"
-        )
-        return pd.concat([driver_jct, pod_jct])
-
-    @try_except("Collect Pod CPI")
-    def collect_pod_cpi(self, test_case_data: TestCaseData) -> pd.DataFrame:
-        assert isinstance(self.hardware_collector, MyPromCollector)
-        return self.hardware_collector.collect_pod_cpi(
-            test_case_data.start_time, test_case_data.end_time
-        )
-
-    @try_except("Collect Node CPI")
-    def collect_node_cpi(self, test_case_data: TestCaseData) -> pd.DataFrame:
-        assert isinstance(self.hardware_collector, MyPromCollector)
-        return self.hardware_collector.collect_node_cpi(
-            self.nodes, test_case_data.start_time, test_case_data.end_time
-        )
-
-    @try_except("Collect Pod PSI")
-    def collect_pod_psi(
-        self, test_case_data: TestCaseData, statistical_data: pd.DataFrame
-    ) -> pd.DataFrame:
+    def collect_hardware(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
         assert isinstance(self.hardware_collector, MyPromCollector)
 
-        microservices = statistical_data["microservice"].dropna().unique().tolist()
-        start_time = test_case_data.start_time
-        end_time = test_case_data.end_time
+        hardware_data = super().collect_hardware()
+        pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
 
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
         pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
             microservices, start_time, end_time
         )
@@ -387,76 +365,20 @@ class MyDataCollector(BaseDataCollector):
         pod_io_psi = self.hardware_collector.collect_pod_io_psi(
             microservices, start_time, end_time
         )
-        return pod_cpu_psi.merge(pod_mem_psi).merge(pod_io_psi)
 
-    def collect(self, test_case_data: TestCaseData) -> None:
-        """Collect throughput, traces and hardware resource usage data and save
-        them into files.
-
-        Args:
-            test_data (TestCaseData): Test case related data.
-        """
-        self.test_case_data = test_case_data
-
-        jct_data = self.collect_jct(test_case_data)
-        if jct_data is None:
-            return
-        log.debug("collect jct success", to_file=True)
-
-        throughput_data = self.collect_throughput(test_case_data)
-        if throughput_data is None:
-            return
-        log.debug("collect throughput success", to_file=True)
-
-        trace_data = self.collect_traces(test_case_data)
-        if trace_data is None:
-            return
-        log.debug("collect traces success", to_file=True)
-
-        raw_data = trace_data.raw_data
-        statistical_data = trace_data.statistical_data
-        end_to_end_data = trace_data.end_to_end_data
-
-        hardware_data = self.collect_hardware(test_case_data, statistical_data)
-        if hardware_data is None:
-            return
-        log.debug("collect pod hardware success", to_file=True)
-
-        pod_psi_data = self.collect_pod_psi(test_case_data, statistical_data)
-        if pod_psi_data is None:
-            return
-        log.debug("collect pod PSI success", to_file=True)
-
-        pod_cpi_data = self.collect_pod_cpi(test_case_data)
-        if pod_cpi_data is None:
-            return
-        log.debug("collect pod CPI success", to_file=True)
-
-        node_cpi_data = self.collect_node_cpi(test_case_data)
-        if node_cpi_data is None:
-            return
-        log.debug("collect node CPI success", to_file=True)
-
-        hardware_data = hardware_data.merge(pod_psi_data).merge(pod_cpi_data)
-
-        node_data = self.collect_node(test_case_data)
-        if node_data is None:
-            return
-        log.debug("collect node success", to_file=True)
-        node_data = node_data.merge(node_cpi_data)
-
-        data_list = [
-            ToBeSavedData(statistical_data, f"{self.data_path}/statistical_data.csv"),
-            ToBeSavedData(raw_data, f"{self.data_path}/raw_data.csv"),
-            ToBeSavedData(hardware_data, f"{self.data_path}/hardware_data.csv"),
-            ToBeSavedData(throughput_data, f"{self.data_path}/throughput_data.csv"),
-            ToBeSavedData(end_to_end_data, f"{self.data_path}/end_to_end_data.csv"),
-            ToBeSavedData(node_data, f"{self.data_path}/node_data.csv"),
-            ToBeSavedData(jct_data, f"{self.data_path}/jct_data.csv"),
-        ]
-        result = self.append_additional_and_save(
-            data_list, test_case_data.additional_columns
+        return (
+            hardware_data.merge(pod_mem_psi)
+            .merge(pod_cpu_psi)
+            .merge(pod_io_psi)
+            .merge(pod_cpi, how="left")
         )
-        if result is None:
-            return
-        log.key(f"Data collection of {test_case_data.name} success!")
+
+    def collect_jct(self) -> pd.DataFrame:
+        name = self.test_case_data.name
+        with open(f"{self.offline_job_output_path}/{name}", "r") as file:
+            jct = float(file.readline())
+        driver_jct = pd.DataFrame(
+            [{"pod": "driver", "jct": jct, "task_id": 0, "node": "driver"}]
+        )
+        pod_jct = pd.read_csv(f"{self.offline_job_output_path}/{name}.pod_jct")
+        return pd.concat([driver_jct, pod_jct])

@@ -73,6 +73,7 @@ def start_experiment_handler():
         prom_collector,
         wrk_collector,
         configs_obj.nodes["testbed"],
+        configs_obj.file_paths["offline_job_output_path"],
     )
     manager.components.set("data_collector", data_collector)
     log.info("Generating data collector success, set to components.data_collector")
