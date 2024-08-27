@@ -22,7 +22,7 @@ from AEFM.data_collector import TestCaseData
 
 from ..offline_job import OfflineJobLauncher
 from ..collector import MyDataCollector, MyPromCollector
-from ..optum_deployer import OptumDeployer, SCHEDULER_NAME
+from .optum_deployer import OptumDeployer, SCHEDULER_NAME
 from scheduler import (
     Scheduler,
     ResourceUsagePredictor,
