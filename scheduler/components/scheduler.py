@@ -26,8 +26,6 @@ class Scheduler:
         self.res_predictor = res_predictor
         self.online_qps = 0
         self.cluster_lock = threading.Lock()
-        self.scheduling = False
-        self.updating = False
 
     def score(
         self,
@@ -89,7 +87,6 @@ class Scheduler:
 
     def select(self, pod: Pod) -> Node:
         self.cluster_lock.acquire()
-        self.scheduling = True
         max_score, selected_node = -200, None
         for node in self.cluster.nodes.values():
             score = self.score(node, pod)
@@ -100,8 +97,7 @@ class Scheduler:
         logger.info(
             f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
         )
-        self.cluster.nodes[selected_node.name].pods[pod.name] = pod
-        self.scheduling = False
+        self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
         return selected_node
 

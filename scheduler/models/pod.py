@@ -17,7 +17,7 @@ class Pod:
     ) -> None:
         self.name = name
         self.node_name = node_name
-        self.type = type
+        self.type: Literal["be", "ls"] = type
         self.app_name = app
         self.cpu_requests = cpu_requests
         self.cpu_usage = cpu_usage

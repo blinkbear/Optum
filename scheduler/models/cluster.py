@@ -2,7 +2,7 @@ from ..utils.k8s import client as k8s_client
 from ..utils.prom import client as prom_client
 from ..utils import logger
 from ..models.types import *
-from ..models import Node, App
+from ..models import Node, App, Pod
 from .app import App, nan_app
 
 
@@ -16,6 +16,9 @@ class Cluster:
 
     def get_node(self, node_name: str) -> Node:
         return self.nodes[node_name]
+    
+    def assign_pod_to_node(self, pod: Pod, node: Node):
+        node.pods[pod.name] = pod
 
     def update(self, online_qps: QPS):
         self.nodes: dict[NodeName, Node] = {}
