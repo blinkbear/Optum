@@ -76,7 +76,8 @@ test_cases:
       threads: 10
       url: http://localhost:30096
     range:
-      max: 4000
+      # max: 4000
+      max: 1000
       min: 1000
       step: 1000
   offline_job:
