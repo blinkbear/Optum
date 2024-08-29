@@ -14,8 +14,7 @@ from AEFM import set_config_file, set_log_level
 set_config_file("experiments/optum/configs.yaml")
 set_log_level("info")
 
-MODEL_ROOT = "data/models/experiment_02"
-DATA_ROOT = "data/experiment_02/profiling"
+from ..data import MODEL_ROOT, DATA_ROOT
 
 manager.data.set(
     "ls_models",

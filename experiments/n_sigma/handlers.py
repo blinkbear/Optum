@@ -31,11 +31,11 @@ def start_experiment_handler():
     configs_obj = configs.load_configs()
     manager.data.set("configs", configs_obj)
     # Deployer setup
-    apps = create_apps_from_data("data/understanding_11/hardware_data.csv")
+    apps = create_apps_from_data(manager.data.get("hardware_data"))
     cluster = Cluster(
         [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
     )
-    scheduler = NSigmaScheduler(cluster, "data/understanding_11/node_data.csv")
+    scheduler = NSigmaScheduler(cluster, manager.data.get("node_data"))
     scheduler.run()
     manager.components.set("scheduler", scheduler)
     base_deployer = NSigmaDeployer(

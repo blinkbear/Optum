@@ -11,6 +11,10 @@ from .handlers import *
 from AEFM.manager import manager
 from AEFM import set_config_file, set_log_level
 
+from ..data import DATA_ROOT
+
+manager.data.set("hardware_data", f"{DATA_ROOT}/hardware_data.csv")
+
 set_config_file("experiments/brog_like/configs.yaml")
 set_log_level("info")
 
