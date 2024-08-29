@@ -60,7 +60,7 @@ class InterferenceProfiler:
         return max(result, 0.0)
 
     @staticmethod
-    def train_ls(pod_data_path: str, node_data_path: str, model_path: str) -> None:
+    def train_ls(pod_data_path: str, node_data_path: str, assignment_data_path: str, model_path: str) -> None:
         pod_data = pd.read_csv(pod_data_path)[
             [
                 "microservice",
@@ -76,8 +76,7 @@ class InterferenceProfiler:
         node_data = pd.read_csv(node_data_path)[
             ["node", "node_cpu", "node_mcp", "round", "throughput", "offline_job"]
         ]
-        #! HARD CODE BELOW
-        assignment_data = pd.read_csv("data/understanding_11/ms_pod_node_data.csv")
+        assignment_data = pd.read_csv(assignment_data_path)
         data = pod_data.merge(assignment_data).merge(node_data)
         for app_name, grp in data.groupby("microservice"):
             if "python" in app_name:
