@@ -107,23 +107,26 @@ class K8sClient:
                 and event["object"].status.phase == "Pending"
                 and event["object"].spec.scheduler_name == scheduler_name
             ):
-                k8s_pod = event["object"]
-                if not self.check_pod_existence(k8s_pod):
-                    continue
-                pod = self.parse_k8s_pod_to_optum_pod(k8s_pod)
-                node = node_selection(pod)
-                k8s_node = V1ObjectReference(
-                    kind="Node",
-                    api_version="v1",
-                    name=node.name,
-                    namespace=pod.namespace,
-                )
-                meta = V1ObjectMeta()
-                meta.name = pod.name
-                binding = V1Binding(target=k8s_node, metadata=meta)
-                self.v1.create_namespaced_binding(
-                    pod.namespace, binding, _preload_content=False
-                )
+                try:
+                    k8s_pod = event["object"]
+                    if not self.check_pod_existence(k8s_pod):
+                        continue
+                    pod = self.parse_k8s_pod_to_optum_pod(k8s_pod)
+                    node = node_selection(pod)
+                    k8s_node = V1ObjectReference(
+                        kind="Node",
+                        api_version="v1",
+                        name=node.name,
+                        namespace=pod.namespace,
+                    )
+                    meta = V1ObjectMeta()
+                    meta.name = pod.name
+                    binding = V1Binding(target=k8s_node, metadata=meta)
+                    self.v1.create_namespaced_binding(
+                        pod.namespace, binding, _preload_content=False
+                    )
+                except Exception as e:
+                    logger.warning("K8sClient.schedule_pending_pods" + e)
             if exit_event.is_set():
                 watcher.stop()
 
