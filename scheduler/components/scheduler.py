@@ -2,7 +2,7 @@ from ..models.types import *
 from .interference_predictor import InterferencePredictor
 from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
-from ..utils import logger
+from .logger import logger
 from ..utils.k8s import client as k8s_client
 from time import sleep
 import threading

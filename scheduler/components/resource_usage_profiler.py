@@ -1,6 +1,6 @@
 from ..models import EROTable, Node
 from ..models.types import *
-from ..utils import logger
+from .logger import logger
 import pandas as pd
 import os
 

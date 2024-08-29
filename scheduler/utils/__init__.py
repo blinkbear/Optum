@@ -3,8 +3,8 @@ from typing import TypeVar
 import pickle
 import logging
 
-logger = logging.getLogger("Optum")
-logger.info("Greetings from Optum!")
+logger = logging.getLogger("Base")
+logger.info("Greetings from Optum base!")
 logger.info("We will use <> to represents pods")
 logger.info("We will use [] to represents nodes")
 logger.info("We will use {} to represents nodes")

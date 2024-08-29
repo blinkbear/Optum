@@ -1,5 +1,6 @@
 from ..models.types import *
-from ..utils import load_obj, save_obj, logger
+from ..utils import load_obj, save_obj
+from .logger import logger
 from ..models import PSIModel, CTModel
 import pandas as pd
 

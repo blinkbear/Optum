@@ -2,7 +2,7 @@ from .resource_usage_profiler import ResourceUsageProfiler
 from ..models.types import *
 from ..models import Pod, Node
 from itertools import zip_longest
-from ..utils import logger
+from .logger import logger
 
 
 class ResourceUsagePredictor:
