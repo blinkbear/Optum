@@ -88,6 +88,7 @@ class InterferenceProfiler:
             x = grp[["node_cpu", "node_mcp", "cpu_usage", "mem_usage", "throughput"]]
             x = x.apply(lambda x: list(x), axis=1).tolist()
             model = PSIModel()
+            print(f"LS {app_name} SMAPE score: ")
             model.train(x, y)
             save_obj(f"{model_path}/{app_name}.ls", model)
 
@@ -120,5 +121,6 @@ class InterferenceProfiler:
         x = data[["node_cpu", "node_mcp", "cpu_usage", "mem_usage"]]
         x = x.apply(lambda x: list(x), axis=1).tolist()
         model = CTModel()
+        print("BE SMAPE score: ")
         model.train(x, y)
         save_obj(f"{model_path}/pythonpi.be", model)
