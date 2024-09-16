@@ -2,11 +2,11 @@ app: hotel
 app_img: nicklin9907/aefm:hotel-1.1
 duration: 330
 file_paths:
-  collector_data: data/brog_like
-  log: log/brog_like_aefm.log
-  wrk_output_path: tmp/wrk_brog_like
+  collector_data: data/borg_like
+  log: log/borg_like_aefm.log
+  wrk_output_path: tmp/wrk_borg_like
   yaml_repo: $MODULE_DEFAULT/hotel
-  offline_job_output_path: tmp/offline_job_brog_like
+  offline_job_output_path: tmp/offline_job_borg_like
 jaeger_entrance: frontend
 jaeger_host: http://localhost:30095
 namespace: hotel-reserv

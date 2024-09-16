@@ -21,10 +21,10 @@ from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 
-from .brog_like_deployer import BrogLikeDeployer
+from .borg_like_deployer import BorgLikeDeployer
 from ..offline_job import OfflineJobLauncher
 from ..collector import MyDataCollector, MyPromCollector
-from scheduler.baselines import BrogLikeScheduler, BROG_LIKE_NAME
+from scheduler.baselines import BorgLikeScheduler, BORG_LIKE_NAME
 from scheduler.models import Cluster
 from scheduler.models.app import create_apps_from_data
 
@@ -38,10 +38,10 @@ def start_experiment_handler():
     cluster = Cluster(
         [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
     )
-    scheduler = BrogLikeScheduler(cluster)
+    scheduler = BorgLikeScheduler(cluster)
     scheduler.run()
     manager.components.set("scheduler", scheduler)
-    base_deployer = BrogLikeDeployer(
+    base_deployer = BorgLikeDeployer(
         configs_obj.namespace,
         configs_obj.pod_spec,
         configs_obj.get_nodes_by_role("infra"),
@@ -106,7 +106,7 @@ def start_experiment_handler():
     log.key(f"Log file will be saved in {configs_obj.file_paths.log}.")
 
     offline_job_launcher = OfflineJobLauncher(
-        configs_obj.file_paths["offline_job_output_path"], BROG_LIKE_NAME
+        configs_obj.file_paths["offline_job_output_path"], BORG_LIKE_NAME
     )
     manager.components.set("offline_job_launcher", offline_job_launcher)
 
@@ -169,7 +169,7 @@ def end_experiment_handler():
     log.info("Waiting for data collection processes finished.")
     data_collector.wait()
     scheduler = manager.components.get("scheduler")
-    assert isinstance(scheduler, BrogLikeScheduler)
+    assert isinstance(scheduler, BorgLikeScheduler)
     scheduler.stop()
 
 
@@ -180,7 +180,7 @@ def start_workload_handler():
     configs_obj = manager.data.get("configs")
     assert isinstance(configs_obj, configs.Configs)
     assert isinstance(test_case, TestCase)
-    assert isinstance(deployer, BrogLikeDeployer)
+    assert isinstance(deployer, BorgLikeDeployer)
 
     deployer.reload(configs_obj["replicas"], test_case.workload.throughput)
 

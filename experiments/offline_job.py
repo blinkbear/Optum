@@ -26,7 +26,7 @@ class OfflineJobLauncher:
     --conf spark.kubernetes.executor.label.optum-type=be \
     --conf spark.executor.memory=1g \
     --conf spark.executor.memoryOverhead=1g \
-    --conf spark.kubernetes.executor.node.selector.aefm.role=testbed \
+    --conf spark.kubernetes.node.selector.aefm.role=testbed \
 """
         if scheduler_name is not None:
             self.run_command += f"--conf spark.kubernetes.executor.scheduler.name={scheduler_name}"

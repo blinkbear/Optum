@@ -2,7 +2,7 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    filename="log/brog_like.log",
+    filename="log/borg_like.log",
     filemode="a",
     format="<%(asctime)s>[%(name)s](%(levelname)s) %(message)s",
 )
@@ -15,7 +15,7 @@ from ..data import DATA_ROOT
 
 manager.data.set("hardware_data", f"{DATA_ROOT}/hardware_data.csv")
 
-set_config_file("experiments/brog_like/configs.yaml")
+set_config_file("experiments/borg_like/configs.yaml")
 set_log_level("info")
 
 manager.run()

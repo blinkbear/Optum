@@ -4,12 +4,12 @@ from ..models import Cluster, Node, Pod
 from random import choice
 from logging import getLogger
 
-logger = getLogger("BrogLike")
+logger = getLogger("BorgLike")
 
-SCHEDULER_NAME = "brog-like-scheduler"
+SCHEDULER_NAME = "borg-like-scheduler"
 
 
-class BrogLikeScheduler(BaselineScheduler):
+class BorgLikeScheduler(BaselineScheduler):
     def __init__(self, cluster: Cluster, pred_pod_util: Utilization = 0.8) -> None:
         super().__init__(cluster)
         self.pred_pod_util = pred_pod_util
