@@ -1,5 +1,6 @@
 import os, threading, queue, subprocess, re, time
 from AEFM.utils.files import delete_path, create_folder, write_to_file
+from AEFM.utils.logger import log
 import pandas as pd
 
 
@@ -54,13 +55,23 @@ class OfflineJobLauncher:
 
         # Record the JCT provided by driver pod
         message = self.message_queue.get()
-        driver_pod = re.search(r"pod name:\s*(.*)\n", message).group(1)
+        driver_pod = re.search(r"pod name:\s*(.*)\n", message)
+        if driver_pod is None:
+            log.warn("Get driver pod failed.", to_file=True)
+            return
+        driver_pod = driver_pod.group(1)
         command = f"kubectl logs -n default {driver_pod}"
         out, _ = subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE
         ).communicate()
         logs = out.decode("utf-8")
-        jct = re.search(r"Job 0 finished.*\s(\d+\.\d+)\ss\n", logs).group(1)
+        jct = re.search(r"Job 0 finished.*\s(\d+\.\d+)\ss\n", logs)
+        if jct is None:
+            log.warn("Get driver jct failed.", to_file=True)
+            return
+        jct = jct.group(1)
+        if jct is None:
+            return
         write_to_file(f"{self.output_path}/{test_case_name}", f"{jct}\n")
         write_to_file(f"{self.output_path}/{test_case_name}.log", f"{message}\n")
 

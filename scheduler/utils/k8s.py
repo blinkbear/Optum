@@ -126,7 +126,7 @@ class K8sClient:
                         pod.namespace, binding, _preload_content=False
                     )
                 except Exception as e:
-                    logger.warning("K8sClient.schedule_pending_pods" + e)
+                    logger.warning(f"K8sClient.schedule_pending_pods: {e}")
             if exit_event.is_set():
                 watcher.stop()
 

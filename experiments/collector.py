@@ -344,8 +344,10 @@ class MyDataCollector(BaseDataCollector):
         mcp = self.hardware_collector.collect_node_mcp(self.nodes, start_time, end_time)
         net = self.hardware_collector.collect_node_net(self.nodes, start_time, end_time)
         psi = self.hardware_collector.collect_node_psi(self.nodes, start_time, end_time)
-        cpi = self.hardware_collector.collect_node_cpi(self.nodes, start_time, end_time)
-        return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
+        # Stop collecting CPI since heavy overhead
+        # cpi = self.hardware_collector.collect_node_cpi(self.nodes, start_time, end_time)
+        # return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
+        return cpu.merge(mcp).merge(net).merge(psi)
 
     def collect_hardware(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
