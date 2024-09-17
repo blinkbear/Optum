@@ -18,7 +18,7 @@ class BorgLikeScheduler(BaselineScheduler):
         available_nodes: list[Node] = []
         self.cluster_lock.acquire()
         for node in self.cluster.nodes.values():
-            if not self.check_mem_avalability(node, pod):
+            if not self.check_mem_availability(node, pod):
                 continue
             # Check CPU availability
             node_cpu_usage = (

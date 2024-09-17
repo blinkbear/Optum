@@ -33,7 +33,7 @@ class BaselineScheduler(ABC):
 
         self.exit_event = exit_event
 
-    def check_mem_avalability(self, node: Node, pod: Pod) -> bool:
+    def check_mem_availability(self, node: Node, pod: Pod) -> bool:
         node_mem_requested = node.get_mem_requested() + pod.mem_requests
         if node_mem_requested > node.mem_cap:
             return False

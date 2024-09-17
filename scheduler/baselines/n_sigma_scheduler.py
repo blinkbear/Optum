@@ -30,16 +30,20 @@ class NSigmaScheduler(BaselineScheduler):
         return self.n * self.get_std(node) + self.get_mean(node)
 
     def select(self, pod: Pod) -> Node:
-        available_nodes = []
+        available_nodes: list[Node] = []
         self.cluster_lock.acquire()
         for node in self.cluster.nodes.values():
-            if not self.check_mem_avalability(node, pod):
+            if not self.check_mem_availability(node, pod):
+                logger.info(f"NsigmaScheduler.select: [{node.name}] failed due to memory availability")
                 continue
             # Check node CPU availability
             pod_cpu_util = self.cluster.get_app(pod.app_name).get_p95_pod_cpu_util()
             node_cpu_usage = self.get_n_sigma(node)
-            if node_cpu_usage + pod_cpu_util <= node.cpu_cap:
-                available_nodes.append(node)
+            if node_cpu_usage + pod_cpu_util > node.cpu_cap:
+                logger.info(f"NsigmaScheduler.select: [{node.name}] failed due to CPU availability")
+                continue
+            available_nodes.append(node)
+        logger.info(f"NsigmaScheduler.select: Available nodes [{'],['.join([x.name for x in available_nodes])}]")
         selected_node = choice(available_nodes)
         self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
