@@ -77,9 +77,10 @@ test_cases:
       - 11
   orders:
   - workload
-  - round
   - offline_job
+  - round
   - offline_weight
+  - online_weight
   round:
     # max: 5
     max: 1
@@ -93,22 +94,23 @@ test_cases:
       threads: 10
       url: http://localhost:30096
     range:
-      # max: 4000
-      max: 1000
-      min: 250
-      step: 250
+      max: 500
+      min: 500
+      step: 500
   offline_job:
-  - 8
-  - 24
+  # - 8
+  # - 24
   - 40
-  - 56
+  # - 56
   offline_weight:
   - 0.1
   - 0.3
   - 0.5
   - 0.7
   - 0.9
-  # - 9
-  # - 18
-  # - 27
-  # - 36
+  online_weight:
+  - 0.1
+  - 0.3
+  - 0.5
+  - 0.7
+  - 0.9

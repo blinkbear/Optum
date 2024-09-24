@@ -136,10 +136,8 @@ def start_single_test_case_handler():
     assert isinstance(test_case, TestCase)
     log.key(f"Current test case: {test_case}")
 
-    instances = test_case.additional["offline_job"]
     offline_job_launcher = manager.components.get("offline_job_launcher")
     assert isinstance(offline_job_launcher, OfflineJobLauncher)
-    offline_job_launcher.start(instances, test_case.generate_name())
 
     workload_generator = manager.components.get("workload_generator")
     assert isinstance(workload_generator, WorkloadGeneratorInterface)
@@ -191,7 +189,6 @@ def start_workload_handler():
     assert isinstance(deployer, OptumDeployer)
 
 
-
 @register(event="start_round")
 def start_round_handler():
     pass
@@ -216,26 +213,59 @@ def start_cpu_handler():
 def start_cpu_handler():
     generate_inf("network")
 
-@register(event="start_offline_weight")
-def start_offline_weight_handler():
-    scheduler = manager.components.get("scheduler")
+
+@register(event="start_online_weight")
+def start_online_weight_handler():
     test_case = manager.data.get("current_test_case")
     assert isinstance(test_case, TestCase)
+    online_weight = test_case.additional["online_weight"]
+    log.info(f"Try to change online weight to: {online_weight}")
+    change_weight(online_weight=online_weight, reload=True)
+
+
+@register(event="start_offline_weight")
+def start_offline_weight_handler():
+    test_case = manager.data.get("current_test_case")
+    assert isinstance(test_case, TestCase)
+    offline_weight = test_case.additional["offline_weight"]
+    log.info(f"Try to change offline weight to: {offline_weight}")
+    change_weight(offline_weight=offline_weight)
+
+
+def change_weight(online_weight=None, offline_weight=None, reload=False):
+    scheduler = manager.components.get("scheduler")
     assert isinstance(scheduler, Scheduler)
     scheduler.stop()
 
-    offline_weight = test_case.additional["offline_weight"]
-    scheduler.online_weight = 1 - offline_weight
-    scheduler.offline_weight = offline_weight
+    if online_weight is not None:
+        scheduler.online_weight = online_weight
+    if offline_weight is not None:
+        scheduler.offline_weight = offline_weight
+    log.info(
+        f"Scheduler change to new offline/online weights: [{scheduler.offline_weight}, {scheduler.online_weight}]"
+    )
     scheduler.run()
-    log.info(f"Scheduler change to new offline/online weights: [{offline_weight}, {1 - offline_weight}]")
 
+    if not reload:
+        return
     configs_obj = manager.data.get("configs")
     assert isinstance(configs_obj, configs.Configs)
 
     deployer = manager.components.get("deployer")
     assert isinstance(deployer, OptumDeployer)
-    deployer.reload(configs_obj["replicas"], test_case.workload.throughput)
+    deployer.restart(configs_obj["app"], configs_obj["port"])
+    deployer.reload(configs_obj["replicas"], scheduler.online_qps)
+
+
+@register(event="start_offline_job")
+def start_offline_job_handler():
+    test_case = manager.data.get("current_test_case")
+    assert isinstance(test_case, TestCase)
+
+    instances = test_case.additional["offline_job"]
+    offline_job_launcher = manager.components.get("offline_job_launcher")
+    assert isinstance(offline_job_launcher, OfflineJobLauncher)
+    offline_job_launcher.start(instances, test_case.generate_name())
 
 
 def generate_inf(inf_type: str):

@@ -49,6 +49,8 @@ class OfflineJobLauncher:
         message.put(content)
 
     def join(self, test_case_name: str):
+        if self.worker_thread is None:
+            return
         self.worker_thread.join()
         delete_path(f"{self.output_path}/{test_case_name}")
         delete_path(f"{self.output_path}/{test_case_name}.log")

@@ -6,6 +6,7 @@ from . import parse_cpu_unit, parse_mem_unit
 from typing import Literal, Callable
 from ..utils import logger
 from threading import Event
+import traceback
 
 
 class K8sClient:
@@ -127,6 +128,7 @@ class K8sClient:
                     )
                 except Exception as e:
                     logger.warning(f"K8sClient.schedule_pending_pods: {e}")
+                    traceback.print_exc()
             if exit_event.is_set():
                 watcher.stop()
 
