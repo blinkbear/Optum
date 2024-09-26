@@ -13,7 +13,7 @@ class OfflineJobLauncher:
         spark_path: str = "/home/lcy/spark-3.5.0-bin-hadoop3/bin/spark-submit",
         hadoop_path: str = "hadoop",
         image: str = "k.harbor.siat.ac.cn/cc/spark-py:spark-3.5.3.1",
-        k8s_master: str = "172.169.8.178"
+        k8s_master: str = "172.169.8.178",
     ):
         script_path = f"{Path(__file__).resolve().parent}/_spark_job.py"
         remote_script_path = f"hdfs://{k8s_master}:30900/python/compute.py"
@@ -25,12 +25,18 @@ class OfflineJobLauncher:
         self.message_queue: None | queue.Queue = None
         self.output_path = output_path
         create_folder(output_path, delete=True)
-        self.run_command = spark_path + """\
-    --master k8s://https://""" + k8s_master + """:6443 \
+        self.run_command = (
+            spark_path
+            + """\
+    --master k8s://https://"""
+            + k8s_master
+            + """:6443 \
     --deploy-mode cluster\
     --name spark-pi \
     --conf spark.executor.instances={} \
-    --conf spark.kubernetes.container.image=""" + image + """\
+    --conf spark.kubernetes.container.image="""
+            + image
+            + """\
     --conf spark.kubernetes.authenticate.caCertFile=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt  \
     --conf spark.kubernetes.authenticate.oauthTokenFile=/var/run/secrets/kubernetes.io/serviceaccount/token  \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
@@ -41,6 +47,7 @@ class OfflineJobLauncher:
     --conf spark.executor.memoryOverhead=1g \
     --conf spark.kubernetes.node.selector.aefm.role=testbed \
 """
+        )
         if scheduler_name is not None:
             self.run_command += (
                 f"--conf spark.kubernetes.executor.scheduler.name={scheduler_name} "
@@ -48,7 +55,9 @@ class OfflineJobLauncher:
         self.run_command += remote_script_path
 
     def worker(self, run_command, test_case_name, message: queue.Queue):
-        proc = subprocess.Popen(run_command, stdout=subprocess.PIPE, shell=True)
+        proc = subprocess.Popen(
+            run_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
 
         # Wait until: python-pi is working + available to fetch pods
         time.sleep(60)
@@ -61,8 +70,8 @@ class OfflineJobLauncher:
         )
         os.system(command)
 
-        out, _ = proc.communicate()
-        content = out.decode("utf-8")
+        stdout, stderr = proc.communicate()
+        content = stdout.decode("utf-8") + stderr.decode("utf-8")
         message.put(content)
 
     def join(self, test_case_name: str):

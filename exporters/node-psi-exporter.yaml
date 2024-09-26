@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-psi-exporter
+  namespace: monitor
+  labels:
+    app: node-psi-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-psi-exporter
+  template:
+    metadata:
+      labels:
+        app: node-psi-exporter
+    spec:
+      nodeSelector:
+        project: optum
+      containers:
+      - name: node-psi-exporter
+        image: nicklin9907/exporters:psi-exporter-v1
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true  
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - mountPath: /psi_exporter/pressure
+          name: pressure
+      volumes:
+      - name: pressure
+        hostPath:
+          path: /proc/pressure
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitor
+  name: psi-exporter-service
+  labels:
+    app: psi-exporter-service
+spec:
+  selector:
+    app: node-psi-exporter
+  ports:
+  - name: exporter-port
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  namespace: monitor
+  name: psi-monitor
+  labels:
+    app: psi-monitor
+    release: monitor
+spec:
+  selector:
+    matchLabels:
+      app: psi-exporter-service
+  namespaceSelector:
+    matchNames:
+      - monitor
+  endpoints:
+  - port: exporter-port
+    interval: 1s
+    relabelings:
+    - sourceLabels: 
+      - __meta_kubernetes_endpoint_node_name
+      targetLabel: node

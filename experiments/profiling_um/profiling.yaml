@@ -1,0 +1,85 @@
+app: hotel
+app_img: nicklin9907/aefm:hotel-1.1
+duration: 330
+file_paths:
+  collector_data: data/profiling
+  log: log/profiling.log
+  wrk_output_path: tmp/wrk_profiling
+  yaml_repo: $MODULE_DEFAULT/hotel
+  offline_job_output_path: tmp/offline_job_understanding
+jaeger_entrance: frontend
+jaeger_host: http://localhost:30095
+namespace: hotel-reserv
+nodes:
+- ip: 192.168.0.9
+  name: slave9
+  roles:
+  - infra
+- ip: 192.168.0.22
+  name: slave22
+  roles:
+  - testbed
+- ip: 192.168.0.15
+  name: slave15
+  roles:
+  - testbed
+- ip: 192.168.0.21
+  name: slave21
+  roles:
+  - testbed
+pod_spec:
+  cpu_size: 1
+  mem_size: 200Mi
+port: 0
+prometheus_host: http://localhost:30091
+replicas:
+  frontend: 15
+  geo: 6
+  profile: 6
+  rate: 6
+  reservation: 12
+  search: 12
+test_cases:
+  interferences:
+    cpu:
+      configs:
+        cpu_size: 1
+        mem_size: 200Mi
+      range:
+      - 12
+      - 17
+      - 22
+      - 27
+    mem_capacity:
+      configs:
+        cpu_size: 0.01
+        mem_size: 4Gi
+      range:
+      - 2
+      - 5
+      - 8
+      - 11
+  orders:
+  - workload
+  - round
+  - offline_job
+  round:
+    max: 3
+    min: 1
+    step: 1
+  workload:
+    configs:
+      connections: 10
+      rate: 250
+      script: $MODULE_DEFAULT/hotel/search.lua
+      threads: 10
+      url: http://localhost:30096
+    range:
+      max: 4000
+      min: 1000
+      step: 1000
+  offline_job:
+  - 36
+  - 27
+  - 18
+  - 9
