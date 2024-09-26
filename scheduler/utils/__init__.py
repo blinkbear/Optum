@@ -12,10 +12,12 @@ logger.info("We will use {} to represents nodes")
 T = TypeVar("T")
 
 
-def load_obj(path: str, obj_class: T) -> T:
+def load_obj(path: str, obj_class: type[T]) -> T:
     with open(path, "rb") as file:
         obj: obj_class = pickle.load(file)
-        return obj
+    if not isinstance(obj, obj_class):
+        raise TypeError(f"Expected object of type {obj_class}, but got {type(obj)}")
+    return obj
 
 
 def save_obj(path: str, obj) -> None:
