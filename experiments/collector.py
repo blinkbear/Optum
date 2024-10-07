@@ -349,31 +349,31 @@ class MyDataCollector(BaseDataCollector):
         # return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
         return cpu.merge(mcp).merge(net).merge(psi)
 
-    # def collect_hardware(self) -> pd.DataFrame:
-    #     start_time = self.test_case_data.start_time
-    #     end_time = self.test_case_data.end_time
-    #     assert isinstance(self.hardware_collector, MyPromCollector)
+    def collect_hardware(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
 
-    #     hardware_data = super().collect_hardware()
-    #     pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
+        hardware_data = super().collect_hardware()
+        # pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
 
-    #     microservices = self.statistical_data["microservice"].dropna().unique().tolist()
-    #     pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
-    #         microservices, start_time, end_time
-    #     )
-    #     pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
-    #         microservices, start_time, end_time
-    #     )
-    #     pod_io_psi = self.hardware_collector.collect_pod_io_psi(
-    #         microservices, start_time, end_time
-    #     )
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+        pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
+            microservices, start_time, end_time
+        )
+        pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
+            microservices, start_time, end_time
+        )
+        pod_io_psi = self.hardware_collector.collect_pod_io_psi(
+            microservices, start_time, end_time
+        )
 
-    #     return (
-    #         hardware_data.merge(pod_mem_psi)
-    #         .merge(pod_cpu_psi)
-    #         .merge(pod_io_psi)
-    #         .merge(pod_cpi, how="left")
-    #     )
+        return (
+            hardware_data.merge(pod_mem_psi)
+            .merge(pod_cpu_psi)
+            .merge(pod_io_psi)
+            # .merge(pod_cpi, how="left")
+        )
 
     def collect_jct(self) -> pd.DataFrame:
         name = self.test_case_data.name
