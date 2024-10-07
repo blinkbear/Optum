@@ -116,6 +116,7 @@ class InterferenceProfiler:
             .mean()
             .reset_index()
         )
+        jct_data["jct"] = (jct_data["jct"] - jct_data["jct"].min()) / (jct_data["jct"].max() - jct_data["jct"].min())
         data = pod_data.merge(jct_data).merge(node_data)
         y = data["jct"].tolist()
         x = data[["node_cpu", "node_mcp", "cpu_usage", "mem_usage"]]

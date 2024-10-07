@@ -87,11 +87,11 @@ class Scheduler:
 
     def select(self, pod: Pod) -> Node:
         self.cluster_lock.acquire()
-        max_score, selected_node = -200, None
+        max_score, selected_node = None, None
         for node in self.cluster.nodes.values():
             score = self.score(node, pod)
             logger.debug(f"Scheduler.score:Node {node.name} get score {score}")
-            if score > max_score:
+            if max_score is None or score > max_score:
                 max_score = score
                 selected_node = node
         logger.info(
