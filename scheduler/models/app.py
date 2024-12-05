@@ -60,7 +60,7 @@ class NanApp(App):
             [
                 pod.cpu_usage / pod.cpu_requests
                 for pod in self.pods
-                if pod.cpu_requests is not None
+                if pod.cpu_requests is not None and pod.cpu_requests != 0
             ]
         ).quantile(0.95)
 
@@ -69,7 +69,7 @@ class NanApp(App):
             [
                 pod.mem_usage / pod.mem_requests
                 for pod in self.pods
-                if pod.mem_requests is not None
+                if pod.mem_requests is not None and pod.mem_requests != 0
             ]
         ).quantile(0.95)
 

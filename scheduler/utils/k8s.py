@@ -50,8 +50,7 @@ class K8sClient:
     def get_pod_app(self, k8s_pod: V1Pod) -> AppName:
         if "pythonpi" in k8s_pod.metadata.name:
             return "pythonpi"
-        app = k8s_pod.metadata.labels.get("app", "nan")
-        app = k8s_pod.metadata.labels.get("io.kompose.service", app)
+        app = "-".join(k8s_pod.metadata.name.split("-")[:-2])
         return app
 
     def parse_k8s_pod_to_optum_pod(self, k8s_pod: V1Pod) -> Pod:
