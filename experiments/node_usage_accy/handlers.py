@@ -47,20 +47,6 @@ def start_experiment_handler():
     cluster = Cluster(
         [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
     )
-    scheduler = Scheduler(cluster, inf_pred, res_pred)
-    scheduler.run()
-    manager.components.set("scheduler", scheduler)
-    optum_deployer = OptumDeployer(
-        configs_obj.namespace,
-        configs_obj.pod_spec,
-        configs_obj.get_nodes_by_role("infra"),
-        configs_obj.get_nodes_by_role("testbed"),
-        configs_obj.file_paths.yaml_repo,
-        scheduler,
-        configs_obj.app_img,
-    )
-    manager.components.set("deployer", optum_deployer)
-    log.info("Generating deployer success, set to components.deployer")
     # Workload generator setup
     wrk_config = configs_obj.test_cases.workload.configs
     wrk_config = WrkConfig(
@@ -98,6 +84,25 @@ def start_experiment_handler():
     )
     manager.components.set("data_collector", data_collector)
     log.info("Generating data collector success, set to components.data_collector")
+    scheduler = Scheduler(
+        cluster,
+        inf_pred,
+        res_pred,
+        data_collector.cache_optum_pred_data,
+    )
+    scheduler.run()
+    manager.components.set("scheduler", scheduler)
+    optum_deployer = OptumDeployer(
+        configs_obj.namespace,
+        configs_obj.pod_spec,
+        configs_obj.get_nodes_by_role("infra"),
+        configs_obj.get_nodes_by_role("testbed"),
+        configs_obj.file_paths.yaml_repo,
+        scheduler,
+        configs_obj.app_img,
+    )
+    manager.components.set("deployer", optum_deployer)
+    log.info("Generating deployer success, set to components.deployer")
     # Interference generators setup
     inf_generators = {}
     for inf_type in configs_obj.test_cases.interferences:

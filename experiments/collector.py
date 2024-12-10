@@ -7,6 +7,7 @@ from AEFM.utils.logger import log
 from AEFM.data_collector.prom_hardware_collector import PromHardwareCollector
 from AEFM.models import Node
 from statistics import mean
+from scheduler.models.types import OptumPredData
 
 
 class MyPromCollector(PromHardwareCollector):
@@ -324,16 +325,24 @@ class MyDataCollector(BaseDataCollector):
         )
         self.nodes = nodes
         self.offline_job_output_path = offline_job_output_path
+        self.optum_pred_data: list[OptumPredData] = []
 
         node_data = Collection(
             "node data",
             f"{self.data_path}/node_data.csv",
             self.collect_node,
         )
-        jct_data = Collection(
-            "JCT data", f"{self.data_path}/jct_data.csv", self.collect_jct
+        optum_pred_data = Collection(
+            "Optum prediction data",
+            f"{self.data_path}/optum_pred_data.csv",
+            self.collect_optum_pred_data,
         )
-        self.add_new_collections([node_data, jct_data])
+        # jct_data = Collection(
+        #     "JCT data", f"{self.data_path}/jct_data.csv", self.collect_jct
+        # )
+        # self.add_new_collections([node_data, jct_data])
+        self.add_new_collections(node_data)
+        self.add_new_collections(optum_pred_data)
 
     def collect_node(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
@@ -342,38 +351,38 @@ class MyDataCollector(BaseDataCollector):
 
         cpu = self.hardware_collector.collect_node_cpu(self.nodes, start_time, end_time)
         mcp = self.hardware_collector.collect_node_mcp(self.nodes, start_time, end_time)
-        net = self.hardware_collector.collect_node_net(self.nodes, start_time, end_time)
-        psi = self.hardware_collector.collect_node_psi(self.nodes, start_time, end_time)
+        # net = self.hardware_collector.collect_node_net(self.nodes, start_time, end_time)
+        # psi = self.hardware_collector.collect_node_psi(self.nodes, start_time, end_time)
         # Stop collecting CPI since heavy overhead
         # cpi = self.hardware_collector.collect_node_cpi(self.nodes, start_time, end_time)
         # return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
-        return cpu.merge(mcp).merge(net).merge(psi)
+        return cpu.merge(mcp)
 
-    def collect_hardware(self) -> pd.DataFrame:
-        start_time = self.test_case_data.start_time
-        end_time = self.test_case_data.end_time
-        assert isinstance(self.hardware_collector, MyPromCollector)
+    # def collect_hardware(self) -> pd.DataFrame:
+    #     start_time = self.test_case_data.start_time
+    #     end_time = self.test_case_data.end_time
+    #     assert isinstance(self.hardware_collector, MyPromCollector)
 
-        hardware_data = super().collect_hardware()
-        # pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
+    #     hardware_data = super().collect_hardware()
+    #     # pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
 
-        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
-        pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
-            microservices, start_time, end_time
-        )
-        pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
-            microservices, start_time, end_time
-        )
-        pod_io_psi = self.hardware_collector.collect_pod_io_psi(
-            microservices, start_time, end_time
-        )
+    #     microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+    #     pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
+    #         microservices, start_time, end_time
+    #     )
+    #     pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
+    #         microservices, start_time, end_time
+    #     )
+    #     pod_io_psi = self.hardware_collector.collect_pod_io_psi(
+    #         microservices, start_time, end_time
+    #     )
 
-        return (
-            hardware_data.merge(pod_mem_psi)
-            .merge(pod_cpu_psi)
-            .merge(pod_io_psi)
-            # .merge(pod_cpi, how="left")
-        )
+    #     return (
+    #         hardware_data.merge(pod_mem_psi)
+    #         .merge(pod_cpu_psi)
+    #         .merge(pod_io_psi)
+    #         # .merge(pod_cpi, how="left")
+    #     )
 
     def collect_jct(self) -> pd.DataFrame:
         name = self.test_case_data.name
@@ -384,3 +393,11 @@ class MyDataCollector(BaseDataCollector):
         )
         pod_jct = pd.read_csv(f"{self.offline_job_output_path}/{name}.pod_jct")
         return pd.concat([driver_jct, pod_jct])
+
+    def collect_optum_pred_data(self):
+        data = pd.DataFrame(self.optum_pred_data)
+        self.optum_pred_data = []
+        return data if len(data) != 0 else None
+
+    def cache_optum_pred_data(self, data: OptumPredData):
+        self.optum_pred_data.append(data)

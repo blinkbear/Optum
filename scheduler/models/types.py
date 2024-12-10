@@ -25,3 +25,13 @@ NodeScore = float
 class PodUtil:
     mem_util: Utilization
     cpu_util: Utilization
+
+
+@dataclass
+class OptumPredData:
+    pod: str
+    app: str
+    job_type: str
+    pred_performance_metric: float
+    pred_node_cpu: float
+    pred_node_mem: float

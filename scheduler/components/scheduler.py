@@ -4,6 +4,7 @@ from .resource_usage_predictor import ResourceUsagePredictor
 from ..models import Node, Pod, Cluster
 from .logger import logger
 from ..utils.k8s import client as k8s_client
+from typing import Callable
 from time import sleep
 import threading
 
@@ -16,6 +17,7 @@ class Scheduler:
         cluster: Cluster,
         inf_predictor: InterferencePredictor,
         res_predictor: ResourceUsagePredictor,
+        pred_data_handler: Callable[[OptumPredData], None] | None = None,
         online_weight: float = 0.7,
         offline_weight: float = 0.3,
     ) -> None:
@@ -26,6 +28,12 @@ class Scheduler:
         self.res_predictor = res_predictor
         self.online_qps = 0
         self.cluster_lock = threading.Lock()
+        default_pred_data_handler: Callable[[OptumPredData], None] = lambda _: None
+        self.pred_data_handler = (
+            pred_data_handler
+            if pred_data_handler is not None
+            else default_pred_data_handler
+        )
 
     def score(
         self,
@@ -65,6 +73,7 @@ class Scheduler:
                 )
                 logger.debug(f"Scheduler.score: Computed CT for <{pod.name}> is {ct}")
                 ct_sum.append(ct)
+                pred_performance_metric = ct
             elif pod.type == "ls":
                 qps = app.qps / app.get_pod_counts()
                 psi = self.inf_predictor.get_ri_psi(
@@ -77,28 +86,42 @@ class Scheduler:
                 )
                 logger.debug(f"Scheduler.score: Computed PSI for <{pod.name}> is {psi}")
                 psi_sum.append(psi)
+                pred_performance_metric = psi
+            # These data are used to report prediction result.
+            data = OptumPredData(
+                pod.name,
+                pod.app_name,
+                pod.type,
+                pred_performance_metric,
+                node_cpu_util,
+                node_mem_util,
+            )
         ct_sum, psi_sum = sum(ct_sum), sum(psi_sum)
         score = (
             node_cpu_util * node_mem_util
             - self.online_weight * psi_sum
             - self.offline_weight * ct_sum
         )
-        return score
+        return score, data
 
     def select(self, pod: Pod) -> Node:
         self.cluster_lock.acquire()
         max_score, selected_node = None, None
+        final_pred_data = None
         for node in self.cluster.nodes.values():
-            score = self.score(node, pod)
+            score, pred_data = self.score(node, pod)
             logger.debug(f"Scheduler.score:Node {node.name} get score {score}")
             if max_score is None or score > max_score:
                 max_score = score
                 selected_node = node
+                final_pred_data = pred_data
         logger.info(
             f"Scheduler.schedule: Final selection of <{pod.name}> is [{selected_node.name}]"
         )
         self.cluster.assign_pod_to_node(pod, selected_node)
         self.cluster_lock.release()
+        if final_pred_data is not None:
+            self.pred_data_handler(final_pred_data)
         return selected_node
 
     def monitoring(self, exit_event: threading.Event):
@@ -107,7 +130,7 @@ class Scheduler:
             self.cluster.update(self.online_qps)
             self.res_predictor.update(self.cluster.nodes.values())
             self.cluster_lock.release()
-            sleep(5)
+            sleep(10)
 
     def run(self):
         exit_event = threading.Event()
