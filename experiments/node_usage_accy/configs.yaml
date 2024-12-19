@@ -36,6 +36,9 @@ test_cases:
         mem_size: 200Mi
       range:
       - 50
+      - 44
+      - 39
+      - 33
     mem_capacity:
       configs:
         cpu_size: 0.01
@@ -44,11 +47,11 @@ test_cases:
       - 22
   orders:
   - workload
-  # - cpu
+  - cpu
   # - mem_capacity
   - round
   round:
-    max: 10
+    max: 1
     min: 1
     step: 1
   workload:

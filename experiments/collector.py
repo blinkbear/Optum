@@ -14,7 +14,11 @@ class MyPromCollector(PromHardwareCollector):
     def collect_node_cpu(self, nodes: list[Node], start_time, end_time):
         ips = [node.ip for node in nodes]
         constraint = ":9100|".join(ips) + ":9100"
-        query = f'instance:node_cpu_utilisation:rate5m{{instance=~"{constraint}"}}'
+        query = (
+            '1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total'
+            f'{{job="node-exporter",mode=~"idle|iowait|steal",instance=~"{constraint}"}}'
+            '[90s])))'
+        )
         response = self.fetcher.fetch(query, "range", 1, start_time, end_time)
         log.debug(
             f"{__file__}: Fetch Node CPU usage from: {response.url}", to_file=True
@@ -24,7 +28,7 @@ class MyPromCollector(PromHardwareCollector):
         if usage["data"] and usage["data"]["result"]:
             for data in usage["data"]["result"]:
                 ip = str(data["metric"]["instance"]).split(":")[0]
-                usage = max([float(v[1]) for v in data["values"]])
+                usage = mean([float(v[1]) for v in data["values"]])
                 node = [n.name for n in nodes if n.ip == ip][0]
                 records.append({"node": node, "node_cpu": usage})
         return pd.DataFrame(records)
@@ -337,12 +341,18 @@ class MyDataCollector(BaseDataCollector):
             f"{self.data_path}/optum_pred_data.csv",
             self.collect_optum_pred_data,
         )
+        # pod_cpi_data = Collection(
+        #     "Pod CPI",
+        #     f"{self.data_path}/pod_cpi_data.csv",
+        #     self.collect_pod_cpi,
+        # )
         # jct_data = Collection(
         #     "JCT data", f"{self.data_path}/jct_data.csv", self.collect_jct
         # )
         # self.add_new_collections([node_data, jct_data])
         self.add_new_collections(node_data)
         self.add_new_collections(optum_pred_data)
+        # self.add_new_collections(pod_cpi_data)
 
     def collect_node(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
@@ -358,13 +368,16 @@ class MyDataCollector(BaseDataCollector):
         # return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
         return cpu.merge(mcp)
 
+    def collect_pod_cpi(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
+        pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
+        return pod_cpi
+
     # def collect_hardware(self) -> pd.DataFrame:
-    #     start_time = self.test_case_data.start_time
-    #     end_time = self.test_case_data.end_time
-    #     assert isinstance(self.hardware_collector, MyPromCollector)
 
     #     hardware_data = super().collect_hardware()
-    #     # pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
 
     #     microservices = self.statistical_data["microservice"].dropna().unique().tolist()
     #     pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
@@ -397,7 +410,9 @@ class MyDataCollector(BaseDataCollector):
     def collect_optum_pred_data(self):
         data = pd.DataFrame(self.optum_pred_data)
         self.optum_pred_data = []
-        return data if len(data) != 0 else None
+        if len(data) == 0:
+            raise RuntimeError("Got no prediction data.")
+        return data
 
     def cache_optum_pred_data(self, data: OptumPredData):
         self.optum_pred_data.append(data)
