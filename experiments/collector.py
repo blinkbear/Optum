@@ -15,9 +15,9 @@ class MyPromCollector(PromHardwareCollector):
         ips = [node.ip for node in nodes]
         constraint = ":9100|".join(ips) + ":9100"
         query = (
-            '1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total'
+            "1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total"
             f'{{job="node-exporter",mode=~"idle|iowait|steal",instance=~"{constraint}"}}'
-            '[90s])))'
+            "[90s])))"
         )
         response = self.fetcher.fetch(query, "range", 1, start_time, end_time)
         log.debug(
@@ -308,6 +308,62 @@ class MyPromCollector(PromHardwareCollector):
             processed_results.append(data)
         return pd.DataFrame(processed_results)
 
+    def collect_pod_cpu_max_min_mean(
+        self, microservices: list[str], start_time: float, end_time: float
+    ):
+        response = self.fetcher.fetch_cpu_usage(microservices, start_time, end_time)
+        log.debug(f"{__file__}: Fetch CPU usage from: {response.url}", to_file=True)
+        usage = response.json()
+        records = []
+        if usage["data"] and usage["data"]["result"]:
+            for data in usage["data"]["result"]:
+                pod = str(data["metric"]["pod"])
+                microservice = "-".join(pod.split("-")[:-2])
+                usage_max = max([float(v[1]) for v in data["values"]])
+                usage_min = min([float(v[1]) for v in data["values"]])
+                usage_mean = mean([float(v[1]) for v in data["values"]])
+                records.append(
+                    {
+                        "microservice": microservice,
+                        "pod": pod,
+                        "pod_cpu_max": usage_max,
+                        "pod_cpu_mean": usage_mean,
+                        "pod_cpu_min": usage_min,
+                    }
+                )
+        return pd.DataFrame(records)
+
+    def collect_node_cpu_min_max_mean(self, nodes: list[Node], start_time, end_time):
+        ips = [node.ip for node in nodes]
+        constraint = ":9100|".join(ips) + ":9100"
+        query = (
+            "1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total"
+            f'{{job="node-exporter",mode=~"idle|iowait|steal",instance=~"{constraint}"}}'
+            "[90s])))"
+        )
+        response = self.fetcher.fetch(query, "range", 1, start_time, end_time)
+        log.debug(
+            f"{__file__}: Fetch Node CPU usage from: {response.url}", to_file=True
+        )
+        usage = response.json()
+        records = []
+        if usage["data"] and usage["data"]["result"]:
+            for data in usage["data"]["result"]:
+                ip = str(data["metric"]["instance"]).split(":")[0]
+                usage_mean = mean([float(v[1]) for v in data["values"]])
+                usage_max = max([float(v[1]) for v in data["values"]])
+                usage_min = min([float(v[1]) for v in data["values"]])
+                node = [n.name for n in nodes if n.ip == ip][0]
+                records.append(
+                    {
+                        "node": node,
+                        "node_cpu_mean": usage_mean,
+                        "node_cpu_max": usage_max,
+                        "node_cpu_min": usage_min,
+                    }
+                )
+        return pd.DataFrame(records)
+
 
 class MyDataCollector(BaseDataCollector):
     def __init__(
@@ -319,6 +375,7 @@ class MyDataCollector(BaseDataCollector):
         nodes: list[Node],
         offline_job_output_path: str,
         max_processes: int = 10,
+        collections: list[str] = ["node_data"],
     ) -> None:
         super().__init__(
             data_path,
@@ -331,6 +388,16 @@ class MyDataCollector(BaseDataCollector):
         self.offline_job_output_path = offline_job_output_path
         self.optum_pred_data: list[OptumPredData] = []
 
+        pod_cpi_data = Collection(
+            "Pod CPI",
+            f"{self.data_path}/pod_cpi_data.csv",
+            self.collect_pod_cpi,
+        )
+        jct_data = Collection(
+            "JCT data",
+            f"{self.data_path}/jct_data.csv",
+            self.collect_jct,
+        )
         node_data = Collection(
             "node data",
             f"{self.data_path}/node_data.csv",
@@ -341,18 +408,52 @@ class MyDataCollector(BaseDataCollector):
             f"{self.data_path}/optum_pred_data.csv",
             self.collect_optum_pred_data,
         )
-        # pod_cpi_data = Collection(
-        #     "Pod CPI",
-        #     f"{self.data_path}/pod_cpi_data.csv",
-        #     self.collect_pod_cpi,
-        # )
-        # jct_data = Collection(
-        #     "JCT data", f"{self.data_path}/jct_data.csv", self.collect_jct
-        # )
-        # self.add_new_collections([node_data, jct_data])
-        self.add_new_collections(node_data)
-        self.add_new_collections(optum_pred_data)
-        # self.add_new_collections(pod_cpi_data)
+        node_min_mean_max = Collection(
+            "node min mean max",
+            f"{self.data_path}/node_min_mean_max.csv",
+            self.collect_node_min_max_mean,
+        )
+        pod_min_mean_max = Collection(
+            "pod min mean max",
+            f"{self.data_path}/pod_min_mean_max.csv",
+            self.collect_pod_min_max_mean,
+        )
+        pod_psi_data = Collection(
+            "pod PSI data",
+            f"{self.data_path}/pod_psi_data.csv",
+            self.collect_pod_psi,
+        )
+        if "node_data" in collections:
+            self.add_new_collections(node_data)
+        if "optum_pred_data" in collections:
+            self.add_new_collections(optum_pred_data)
+        if "min_mean_max" in collections:
+            self.add_new_collections([node_min_mean_max, pod_min_mean_max])
+        if "jct_data" in collections:
+            self.add_new_collections(jct_data)
+        if "pod_cpi_data" in collections:
+            self.add_new_collections(pod_cpi_data)
+        if "pod_psi_data" in collections:
+            self.add_new_collections(pod_psi_data)
+
+    def collect_node_min_max_mean(self):
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
+
+        return self.hardware_collector.collect_node_cpu_min_max_mean(
+            self.nodes, start_time, end_time
+        )
+
+    def collect_pod_min_max_mean(self):
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
+
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+        return self.hardware_collector.collect_pod_cpu_max_min_mean(
+            microservices, start_time, end_time
+        )
 
     def collect_node(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
@@ -375,27 +476,23 @@ class MyDataCollector(BaseDataCollector):
         pod_cpi = self.hardware_collector.collect_pod_cpi(start_time, end_time)
         return pod_cpi
 
-    # def collect_hardware(self) -> pd.DataFrame:
+    def collect_pod_psi(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+        assert isinstance(self.hardware_collector, MyPromCollector)
 
-    #     hardware_data = super().collect_hardware()
+        pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
+            microservices, start_time, end_time
+        )
+        pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
+            microservices, start_time, end_time
+        )
+        pod_io_psi = self.hardware_collector.collect_pod_io_psi(
+            microservices, start_time, end_time
+        )
 
-    #     microservices = self.statistical_data["microservice"].dropna().unique().tolist()
-    #     pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
-    #         microservices, start_time, end_time
-    #     )
-    #     pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
-    #         microservices, start_time, end_time
-    #     )
-    #     pod_io_psi = self.hardware_collector.collect_pod_io_psi(
-    #         microservices, start_time, end_time
-    #     )
-
-    #     return (
-    #         hardware_data.merge(pod_mem_psi)
-    #         .merge(pod_cpu_psi)
-    #         .merge(pod_io_psi)
-    #         # .merge(pod_cpi, how="left")
-    #     )
+        return pod_mem_psi.merge(pod_cpu_psi).merge(pod_io_psi)
 
     def collect_jct(self) -> pd.DataFrame:
         name = self.test_case_data.name

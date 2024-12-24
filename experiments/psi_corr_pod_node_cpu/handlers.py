@@ -20,33 +20,14 @@ from AEFM.models import TestCase
 from AEFM.utils.logger import log
 from AEFM.data_collector import TestCaseData
 
-from ..offline_job import OfflineJobLauncher
+from ..profiling_um.deployer import MyDeployer
 from ..collector import MyDataCollector, MyPromCollector
-from .optum_deployer import OptumDeployer, SCHEDULER_NAME
-from scheduler import (
-    Scheduler,
-    ResourceUsagePredictor,
-    InterferencePredictor,
-    Cluster,
-    create_apps_from_data,
-)
 
 
 @register(event="start_experiment")
 def start_experiment_handler():
     configs_obj = configs.load_configs()
     manager.data.set("configs", configs_obj)
-    # Deployer setup
-    inf_pred = InterferencePredictor(
-        manager.data.get("ls_models"),
-        manager.data.get("be_models"),
-    )
-    res_pred = ResourceUsagePredictor("data/ero_table", "data/mem_table")
-
-    apps = create_apps_from_data(manager.data.get("hardware_data"))
-    cluster = Cluster(
-        [node.name for node in configs_obj.get_nodes_by_role("testbed")], apps
-    )
     # Workload generator setup
     wrk_config = configs_obj.test_cases.workload.configs
     wrk_config = WrkConfig(
@@ -81,28 +62,19 @@ def start_experiment_handler():
         wrk_collector,
         configs_obj.nodes["testbed"],
         configs_obj.file_paths["offline_job_output_path"],
-        collections=["node_data", "optum_pred_data"],
+        collections=["pod_psi_data", "min_mean_max"]
     )
     manager.components.set("data_collector", data_collector)
     log.info("Generating data collector success, set to components.data_collector")
-    scheduler = Scheduler(
-        cluster,
-        inf_pred,
-        res_pred,
-        data_collector.cache_optum_pred_data,
-    )
-    scheduler.run()
-    manager.components.set("scheduler", scheduler)
-    optum_deployer = OptumDeployer(
+    deployer = MyDeployer(
         configs_obj.namespace,
         configs_obj.pod_spec,
         configs_obj.get_nodes_by_role("infra"),
         configs_obj.get_nodes_by_role("testbed"),
         configs_obj.file_paths.yaml_repo,
-        scheduler,
         configs_obj.app_img,
     )
-    manager.components.set("deployer", optum_deployer)
+    manager.components.set("deployer", deployer)
     log.info("Generating deployer success, set to components.deployer")
     # Interference generators setup
     inf_generators = {}
@@ -119,15 +91,6 @@ def start_experiment_handler():
     # Set log file location
     log.set_log_file_path(configs_obj.file_paths.log)
     log.key(f"Log file will be saved in {configs_obj.file_paths.log}.")
-    offline_job_launcher = OfflineJobLauncher(
-        configs_obj.file_paths["offline_job_output_path"],
-        scheduler_name=SCHEDULER_NAME,
-        spark_path="/home/cylin/czlu_projects/understanding/bin/spark-3.5.2-bin-hadoop3/bin/spark-submit",
-        hadoop_path="/home/cylin/czlu_projects/understanding/bin/hadoop-3.3.6/bin/hadoop",
-        image="spark:3.5.2-java17-python3",
-        k8s_master="10.119.46.42",
-    )
-    manager.components.set("offline_job_launcher", offline_job_launcher)
 
 
 @register(event="init_environment")
@@ -136,10 +99,10 @@ def init_environment_handler():
     assert isinstance(configs_obj, configs.Configs)
 
     deployer = manager.components.get("deployer")
-    assert isinstance(deployer, OptumDeployer)
-    # log.info("Restaring application.")
+    assert isinstance(deployer, MyDeployer)
+    log.info("Restaring application.")
     deployer.restart(configs_obj["app"], configs_obj["port"])
-    deployer.reload(configs_obj["replicas"], 2500)
+    deployer.reload(configs_obj["replicas"])
 
 
 @register(event="start_single_test_case")
@@ -164,8 +127,6 @@ def start_single_test_case_handler():
     )
     manager.data.set("test_case_data", test_case_data)
     log.debug("workload generation finished", to_file=True)
-    # offline_job_launcher.join(test_case.generate_name())
-    # log.debug("offline job thread finished", to_file=True)
 
 
 @register(event="start_data_collection")
@@ -184,21 +145,13 @@ def end_experiment_handler():
         inf_generator.clear(wait=False)
     data_collector = manager.components.get("data_collector")
     assert isinstance(data_collector, DataCollectorInterface)
-    scheduler = manager.components.get("scheduler")
-    assert isinstance(scheduler, Scheduler)
-    scheduler.stop()
     log.info("Waiting for data collection processes finished.")
     data_collector.wait()
 
 
 @register(event="start_workload")
 def start_workload_handler():
-    test_case = manager.data.get("current_test_case")
-    deployer = manager.components.get("deployer")
-    configs_obj = manager.data.get("configs")
-    assert isinstance(configs_obj, configs.Configs)
-    assert isinstance(test_case, TestCase)
-    assert isinstance(deployer, OptumDeployer)
+    pass
 
 
 @register(event="start_round")
@@ -206,10 +159,10 @@ def start_round_handler():
     deployer = manager.components.get("deployer")
     configs_obj = manager.data.get("configs")
     assert isinstance(configs_obj, configs.Configs)
-    assert isinstance(deployer, OptumDeployer)
+    assert isinstance(deployer, MyDeployer)
 
     deployer.restart(configs_obj["app"], configs_obj["port"])
-    deployer.reload(configs_obj["replicas"], 2500)
+    deployer.reload(configs_obj["replicas"])
 
 
 @register(event="start_cpu")
@@ -247,9 +200,6 @@ def generate_inf(inf_type: str):
         inf_count, configs_obj.get_nodes_by_role("testbed"), wait=True
     )
 
-    from time import sleep
-
-    sleep(60)
     deployer = manager.components.get("deployer")
-    assert isinstance(deployer, OptumDeployer)
-    deployer.reload(configs_obj["replicas"], 2500)
+    assert isinstance(deployer, MyDeployer)
+    deployer.reload(configs_obj["replicas"])
