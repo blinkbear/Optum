@@ -1,0 +1,73 @@
+app: social 
+app_img: nicklin9907/aefm:social-1.1
+duration: 40
+file_paths:
+  collector_data: data/psi_corr_pod_node_cpu_social
+  log: log/psi_corr_pod_node_cpu_social_aefm.log
+  wrk_output_path: tmp/psi_corr_pod_node_cpu_social
+  yaml_repo: $MODULE_DEFAULT/social
+  offline_job_output_path: tmp/offline_job_psi_corr_pod_node_cpu_social
+jaeger_entrance: frontend
+jaeger_host: http://localhost:30095
+namespace: social-network 
+nodes:
+- ip: 192.168.0.11
+  name: slave11
+  roles:
+  - infra
+  - testbed
+pod_spec:
+  cpu_size: 1
+  mem_size: 200Mi
+port: 0
+prometheus_host: http://localhost:30091
+replicas:
+  compose-post-service: 1
+  home-timeline-service: 1
+  media-service: 1
+  nginx-thrift: 1
+  post-storage-service: 1
+  social-graph-service: 1
+  text-service: 1
+  unique-id-service: 1
+  url-shorten-service: 1
+  user-mention-service: 1
+  user-service: 1
+  user-timeline-service: 1
+  write-home-timeline-service: 1
+test_cases:
+  interferences:
+    cpu:
+      configs:
+        cpu_size: 1
+        mem_size: 200Mi
+      range:
+      - 50
+      - 44
+      - 39
+      - 33
+    mem_capacity:
+      configs:
+        cpu_size: 0.01
+        mem_size: 4Gi
+      range:
+      - 22
+  orders:
+  - workload
+  - cpu
+  - round
+  round:
+    max: 1
+    min: 1
+    step: 1
+  workload:
+    configs:
+      connections: 10
+      rate: 300
+      script: $MODULE_DEFAULT/social/read-home-timeline.lua
+      threads: 10
+      url: http://localhost:30096
+    range:
+      max: 1200
+      min: 300
+      step: 300

@@ -11,7 +11,7 @@ jaeger_host: http://localhost:30095
 namespace: hotel-reserv
 nodes:
 - ip: 192.168.0.9
-  name: slave9
+  name: slave09
   roles:
   - infra
   - testbed
@@ -62,6 +62,6 @@ test_cases:
       threads: 5
       url: http://localhost:30096
     range:
-      max: 80
-      min: 80
-      step: 80
+      max: 40
+      min: 40
+      step: 40

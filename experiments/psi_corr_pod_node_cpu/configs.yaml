@@ -1,9 +1,9 @@
 app: hotel
 app_img: nicklin9907/aefm:hotel-1.1
-duration: 90
+duration: 40
 file_paths:
   collector_data: data/psi_corr_pod_node_cpu
-  log: log/psi_corr_pod_node.log
+  log: log/psi_corr_pod_node_cpu_aefm.log
   wrk_output_path: tmp/psi_corr_pod_node_cpu
   yaml_repo: $MODULE_DEFAULT/hotel
   offline_job_output_path: tmp/offline_job_psi_corr_pod_node_cpu
@@ -25,7 +25,7 @@ replicas:
   frontend: 4
   geo: 2
   profile: 2
-  rate: 2
+  rate: 1
   reservation: 3
   search: 3
 test_cases:
@@ -56,11 +56,11 @@ test_cases:
   workload:
     configs:
       connections: 10
-      rate: 250
+      rate: 300
       script: $MODULE_DEFAULT/hotel/search.lua
       threads: 10
       url: http://localhost:30096
     range:
-      max: 4000
-      min: 1000
-      step: 1000
+      max: 1200
+      min: 300
+      step: 300

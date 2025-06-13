@@ -11,7 +11,7 @@ jaeger_host: http://localhost:30095
 namespace: hotel-reserv
 nodes:
 - ip: 192.168.0.9
-  name: slave9
+  name: slave09
   roles:
   - infra
   - testbed

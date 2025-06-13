@@ -1,0 +1,96 @@
+app: social
+app_img: nicklin9907/aefm:social-1.1
+duration: 30
+file_paths:
+  collector_data: data/n_sigma_um
+  log: log/n_sigma_aefm.log
+  wrk_output_path: tmp/wrk_n_sigma_um
+  yaml_repo: $MODULE_DEFAULT/social
+  offline_job_output_path: tmp/offline_job_n_sigma_um
+jaeger_entrance: nginx-web-server 
+jaeger_host: http://localhost:30094
+namespace: social
+nodes:
+- ip: 192.168.0.14
+  name: slave14
+  roles:
+  - infra
+- ip: 192.168.0.11
+  name: slave11
+  roles:
+  - testbed
+- ip: 192.168.0.12
+  name: slave12
+  roles:
+  - testbed
+- ip: 192.168.0.13
+  name: slave13
+  roles:
+  - testbed
+pod_spec:
+  cpu_size: 1
+  mem_size: 200Mi
+port: 30628
+prometheus_host: http://localhost:30091
+replicas:
+  compose-post-service: 6
+  home-timeline-service: 1
+  media-service: 1
+  nginx-thrift: 3
+  post-storage-service: 1
+  social-graph-service: 1
+  text-service: 1
+  unique-id-service: 1
+  url-shorten-service: 1
+  user-mention-service: 1
+  user-service: 1
+  user-timeline-service: 1
+  write-home-timeline-service: 1
+test_cases:
+  interferences:
+    cpu:
+      configs:
+        cpu_size: 1
+        mem_size: 200Mi
+      range:
+      - 12
+      - 17
+      - 22
+      - 27
+    mem_capacity:
+      configs:
+        cpu_size: 0.01
+        mem_size: 4Gi
+      range:
+      - 2
+      - 5
+      - 8
+      - 11
+  orders:
+  - workload
+  - round
+  - offline_job
+  round:
+    max: 3
+    min: 1
+    step: 1
+  workload:
+    configs:
+      connections: 10
+      rate: 250
+      script: $MODULE_DEFAULT/social/compose-post.lua
+      threads: 10
+      url: http://localhost:30628
+    range:
+      max: 2500
+      min: 1500
+      step: 500
+  offline_job:
+  - 8
+  - 24
+  - 40
+  - 56
+  # - 9
+  # - 18
+  # - 27
+  # - 36

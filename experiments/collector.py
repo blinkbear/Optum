@@ -1,3 +1,4 @@
+from tkinter import W
 from AEFM.data_collector.jaeger_trace_collector import JaegerTraceCollector
 from AEFM.data_collector.models import CpuUsage, MemUsage
 from AEFM.data_collector.wrk_throughput_collector import WrkThroughputCollector
@@ -12,7 +13,7 @@ from scheduler.models.types import OptumPredData
 
 class MyPromCollector(PromHardwareCollector):
     def collect_node_cpu(self, nodes: list[Node], start_time, end_time):
-        ips = [node.ip for node in nodes]
+        ips = [node.ip for node in nodes if node.ip is not None]
         constraint = ":9100|".join(ips) + ":9100"
         query = (
             "1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total"
@@ -34,7 +35,7 @@ class MyPromCollector(PromHardwareCollector):
         return pd.DataFrame(records)
 
     def collect_node_mcp(self, nodes: list[Node], start_time, end_time):
-        ips = [node.ip for node in nodes]
+        ips = [node.ip for node in nodes if node.ip is not None]
         constraint = ":9100|".join(ips) + ":9100"
         query = f'instance:node_memory_utilisation:ratio{{instance=~"{constraint}"}}'
         response = self.fetcher.fetch(query, "range", 1, start_time, end_time)
@@ -52,7 +53,7 @@ class MyPromCollector(PromHardwareCollector):
         return pd.DataFrame(records)
 
     def collect_node_net(self, nodes: list[Node], start_time, end_time):
-        ips = [node.ip for node in nodes]
+        ips = [node.ip for node in nodes if node.ip is not None]
         constraint = ":9100|".join(ips) + ":9100"
         query = f'sum(irate(node_network_transmit_bytes_total{{instance=~"{constraint}"}}[1m])) by (instance) / 1024 / 1024'
         response = self.fetcher.fetch(query, "range", 1, start_time, end_time)
@@ -150,7 +151,7 @@ class MyPromCollector(PromHardwareCollector):
     def collect_pod_cpu_psi(
         self, microservices: list[str], start_time: float, end_time: float
     ) -> pd.DataFrame:
-        microservices.append("pythonpi")
+        # microservices.append("pythonpi")
         constraint = 'window!="total",pod_name=~"' + ".*|".join(microservices) + '.*"'
         query = f"psi_perf_monitor_monitored_cpu_psi{{{constraint}}}"
         response = self.fetcher.fetch(
@@ -165,32 +166,32 @@ class MyPromCollector(PromHardwareCollector):
                 microservice = "-".join(pod.split("-")[:-2])
                 type = str(data["metric"]["type"])
                 window = "avg" + str(data["metric"]["window"])[:-1]
-                value = mean([float(v[1]) for v in data["values"]])
-                results.append(
-                    {
-                        "microservice": microservice,
-                        "pod": pod,
-                        "type": type,
-                        "window": window,
-                        "value": value,
-                    }
-                )
-        results = pd.DataFrame(results)
-        pod_names = results["pod"].unique().tolist()
-        processed_results = []
-        for pod_name in pod_names:
-            data = results.loc[results["pod"] == pod_name]
-            data = data.sort_values(["type", "window"])
-            data["name"] = "cpu_" + data["type"] + "_" + data["window"]
-            data = {x: y for x, y in zip(data["name"].tolist(), data["value"].tolist())}
-            data["pod"] = pod_name
-            processed_results.append(data)
-        return pd.DataFrame(processed_results)
+                values = [(int(v[0]), float(v[1])) for v in data["values"]]
+                psi_name = "cpu_" + type + "_" + window
+                for t, v in values:
+                    results.append(
+                        {
+                            "microservice": microservice,
+                            "pod": pod,
+                            "psi_name": psi_name,
+                            "time": t,
+                            "value": v,
+                        }
+                    )
+        results = pd.DataFrame(results).drop_duplicates(
+            subset=["microservice", "pod", "time", "psi_name"]
+        )
+        processed_results = results.pivot(
+            index=["microservice", "pod", "time"],
+            columns="psi_name",
+            values="value",
+        ).reset_index()
+        return processed_results
 
     def collect_pod_mem_psi(
         self, microservices: list[str], start_time: float, end_time: float
     ) -> pd.DataFrame:
-        microservices.append("pythonpi")
+        # microservices.append("pythonpi")
         constraint = 'window!="total",pod_name=~"' + ".*|".join(microservices) + '.*"'
         query = f"psi_perf_monitor_monitored_mem_psi{{{constraint}}}"
         response = self.fetcher.fetch(
@@ -205,27 +206,27 @@ class MyPromCollector(PromHardwareCollector):
                 microservice = "-".join(pod.split("-")[:-2])
                 type = str(data["metric"]["type"])
                 window = "avg" + str(data["metric"]["window"])[:-1]
-                value = mean([float(v[1]) for v in data["values"]])
-                results.append(
-                    {
-                        "microservice": microservice,
-                        "pod": pod,
-                        "type": type,
-                        "window": window,
-                        "value": value,
-                    }
-                )
-        results = pd.DataFrame(results)
-        pod_names = results["pod"].unique().tolist()
-        processed_results = []
-        for pod_name in pod_names:
-            data = results.loc[results["pod"] == pod_name]
-            data = data.sort_values(["type", "window"])
-            data["name"] = "memory_" + data["type"] + "_" + data["window"]
-            data = {x: y for x, y in zip(data["name"].tolist(), data["value"].tolist())}
-            data["pod"] = pod_name
-            processed_results.append(data)
-        return pd.DataFrame(processed_results)
+                values = [(int(v[0]), float(v[1])) for v in data["values"]]
+                psi_name = "memory_" + type + "_" + window
+                for t, v in values:
+                    results.append(
+                        {
+                            "microservice": microservice,
+                            "pod": pod,
+                            "psi_name": psi_name,
+                            "time": t,
+                            "value": v,
+                        }
+                    )
+        results = pd.DataFrame(results).drop_duplicates(
+            subset=["microservice", "pod", "time", "psi_name"]
+        )
+        processed_results = results.pivot(
+            index=["microservice", "pod", "time"],
+            columns="psi_name",
+            values="value",
+        ).reset_index()
+        return processed_results
 
     def collect_pod_cpi(self, start_time: float, end_time: float):
         query = f"max(psi_perf_monitor_cpu_cycles) by (pod_name) / max(psi_perf_monitor_instruction) by (pod_name)"
@@ -271,7 +272,7 @@ class MyPromCollector(PromHardwareCollector):
     def collect_pod_io_psi(
         self, microservices: list[str], start_time: float, end_time: float
     ) -> pd.DataFrame:
-        microservices.append("pythonpi")
+        # microservices.append("pythonpi")
         constraint = 'window!="total",pod_name=~"' + ".*|".join(microservices) + '.*"'
         query = f"psi_perf_monitor_monitored_io_psi{{{constraint}}}"
         response = self.fetcher.fetch(
@@ -286,27 +287,75 @@ class MyPromCollector(PromHardwareCollector):
                 microservice = "-".join(pod.split("-")[:-2])
                 type = str(data["metric"]["type"])
                 window = "avg" + str(data["metric"]["window"])[:-1]
-                value = mean([float(v[1]) for v in data["values"]])
-                results.append(
-                    {
-                        "microservice": microservice,
-                        "pod": pod,
-                        "type": type,
-                        "window": window,
-                        "value": value,
-                    }
-                )
-        results = pd.DataFrame(results)
-        pod_names = results["pod"].unique().tolist()
-        processed_results = []
-        for pod_name in pod_names:
-            data = results.loc[results["pod"] == pod_name]
-            data = data.sort_values(["type", "window"])
-            data["name"] = "io_" + data["type"] + "_" + data["window"]
-            data = {x: y for x, y in zip(data["name"].tolist(), data["value"].tolist())}
-            data["pod"] = pod_name
-            processed_results.append(data)
-        return pd.DataFrame(processed_results)
+                values = [(int(v[0]), float(v[1])) for v in data["values"]]
+                psi_name = "io_" + type + "_" + window
+                for t, v in values:
+                    results.append(
+                        {
+                            "microservice": microservice,
+                            "pod": pod,
+                            "psi_name": psi_name,
+                            "time": t,
+                            "value": v,
+                        }
+                    )
+        results = pd.DataFrame(results).drop_duplicates(
+            subset=["microservice", "pod", "time", "psi_name"]
+        )
+        processed_results = results.pivot(
+            index=["microservice", "pod", "time"],
+            columns="psi_name",
+            values="value",
+        ).reset_index()
+        return processed_results
+
+    def collect_pod_cpu_usage(
+        self, microservices: list[str], start_time: float, end_time: float
+    ) -> pd.DataFrame:
+        response = self.fetcher.fetch_cpu_usage(microservices, start_time, end_time)
+        log.debug(f"{__file__}: Fetch CPU usage from: {response.url}", to_file=True)
+        usage = response.json()
+        records = []
+        if usage["data"] and usage["data"]["result"]:
+            for data in usage["data"]["result"]:
+                pod = str(data["metric"]["pod"])
+                microservice = "-".join(pod.split("-")[:-2])
+                cpu_usages = [(int(v[0]), float(v[1])) for v in data["values"]]
+                for time, pod_cpu in cpu_usages:
+                    records.append(
+                        {
+                            "microservice": microservice,
+                            "pod": pod,
+                            "time": time,
+                            "pod_cpu_usage": pod_cpu,
+                        }
+                    )
+        results = pd.DataFrame(records)
+        return results
+
+    def collect_pod_mem_usage(
+        self, microservices: list[str], start_time: float, end_time: float
+    ) -> pd.DataFrame:
+        response = self.fetcher.fetch_mem_usage(microservices, start_time, end_time)
+        log.debug(f"{__file__}: Fetch Mem usage from: {response.url}", to_file=True)
+        usage = response.json()
+        records = []
+        if usage["data"] and usage["data"]["result"]:
+            for data in usage["data"]["result"]:
+                pod = str(data["metric"]["pod"])
+                microservice = "-".join(pod.split("-")[:-2])
+                mem_usages = [(int(v[0]), float(v[1])) for v in data["values"]]
+                for time, pod_mem in mem_usages:
+                    records.append(
+                        {
+                            "microservice": microservice,
+                            "pod": pod,
+                            "pod_mem_usage": pod_mem,
+                            "time": time,
+                        }
+                    )
+        results = pd.DataFrame(records)
+        return results
 
     def collect_pod_cpu_max_min_mean(
         self, microservices: list[str], start_time: float, end_time: float
@@ -334,7 +383,7 @@ class MyPromCollector(PromHardwareCollector):
         return pd.DataFrame(records)
 
     def collect_node_cpu_min_max_mean(self, nodes: list[Node], start_time, end_time):
-        ips = [node.ip for node in nodes]
+        ips = [node.ip for node in nodes if node.ip is not None]
         constraint = ":9100|".join(ips) + ":9100"
         query = (
             "1 - avg without(cpu) (sum without(mode) (rate(node_cpu_seconds_total"
@@ -377,6 +426,10 @@ class MyDataCollector(BaseDataCollector):
         max_processes: int = 10,
         collections: list[str] = ["node_data"],
     ) -> None:
+        """
+        Collector provides the collections with following metrics:
+        ["node_data","optum_pred_data","min_mean_max","jct_data","pod_cpi_data","pod_psi_data", "pod_data"]
+        """
         super().__init__(
             data_path,
             trace_collector,
@@ -423,6 +476,16 @@ class MyDataCollector(BaseDataCollector):
             f"{self.data_path}/pod_psi_data.csv",
             self.collect_pod_psi,
         )
+        pod_usage_data = Collection(
+            "pod usage data",
+            f"{self.data_path}/pod_usage_data.csv",
+            self.collect_pod_usage,
+        )
+        pod_data = Collection(
+            "pod data",
+            f"{self.data_path}/pod_data.csv",
+            self.collect_pod,
+        )
         if "node_data" in collections:
             self.add_new_collections(node_data)
         if "optum_pred_data" in collections:
@@ -435,6 +498,10 @@ class MyDataCollector(BaseDataCollector):
             self.add_new_collections(pod_cpi_data)
         if "pod_psi_data" in collections:
             self.add_new_collections(pod_psi_data)
+        if "pod_usage_data" in collections:
+            self.add_new_collections(pod_usage_data)
+        if "pod_data" in collections:
+            self.add_new_collections(pod_data)
 
     def collect_node_min_max_mean(self):
         start_time = self.test_case_data.start_time
@@ -455,6 +522,51 @@ class MyDataCollector(BaseDataCollector):
             microservices, start_time, end_time
         )
 
+    def collect_pod_usage(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
+
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+        pod_cpu = self.hardware_collector.collect_pod_cpu_usage(
+            microservices, start_time, end_time
+        )
+        pod_mem = self.hardware_collector.collect_pod_mem_usage(
+            microservices, start_time, end_time
+        )
+        return pod_cpu.merge(pod_mem, on=["microservice", "pod", "time"])
+
+    def collect_pod(self) -> pd.DataFrame:
+        start_time = self.test_case_data.start_time
+        end_time = self.test_case_data.end_time
+        assert isinstance(self.hardware_collector, MyPromCollector)
+
+        microservices = self.statistical_data["microservice"].dropna().unique().tolist()
+        pod_cpu = self.hardware_collector.collect_pod_cpu_usage(
+            microservices, start_time, end_time
+        )
+        pod_mem = self.hardware_collector.collect_pod_mem_usage(
+            microservices, start_time, end_time
+        )
+        pod_cpu_psi = self.hardware_collector.collect_pod_cpu_psi(
+            microservices, start_time, end_time
+        )
+        pod_mem_psi = self.hardware_collector.collect_pod_mem_psi(
+            microservices, start_time, end_time
+        )
+        pod_io_psi = self.hardware_collector.collect_pod_io_psi(
+            microservices, start_time, end_time
+        )
+
+        result = (
+            pod_cpu.merge(pod_mem, on=["microservice", "pod", "time"])
+            .merge(pod_cpu_psi, on=["microservice", "pod", "time"])
+            .merge(pod_mem_psi, on=["microservice", "pod", "time"])
+            .merge(pod_io_psi, on=["microservice", "pod", "time"])
+        )
+
+        return result
+
     def collect_node(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
         end_time = self.test_case_data.end_time
@@ -468,6 +580,7 @@ class MyDataCollector(BaseDataCollector):
         # cpi = self.hardware_collector.collect_node_cpi(self.nodes, start_time, end_time)
         # return cpu.merge(mcp).merge(net).merge(psi).merge(cpi)
         return cpu.merge(mcp)
+        # return cpu.merge(mcp).merge(psi)
 
     def collect_pod_cpi(self) -> pd.DataFrame:
         start_time = self.test_case_data.start_time
@@ -492,7 +605,9 @@ class MyDataCollector(BaseDataCollector):
             microservices, start_time, end_time
         )
 
-        return pod_mem_psi.merge(pod_cpu_psi).merge(pod_io_psi)
+        return pod_mem_psi.merge(pod_cpu_psi, on=["microservice", "pod", "time"]).merge(
+            pod_io_psi, on=["microservice", "pod", "time"]
+        )
 
     def collect_jct(self) -> pd.DataFrame:
         name = self.test_case_data.name

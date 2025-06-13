@@ -10,14 +10,16 @@ class OfflineJobLauncher:
         self,
         output_path: str,
         scheduler_name: str | None = None,
-        spark_path: str = "/home/lcy/spark-3.5.0-bin-hadoop3/bin/spark-submit",
+        spark_path: str = "/home/cylin/czlu_projects/understanding/bin/spark-3.5.2-bin-hadoop3/bin/spark-submit",
         hadoop_path: str = "hadoop",
-        image: str = "k.harbor.siat.ac.cn/cc/spark-py:spark-3.5.3.1",
-        k8s_master: str = "172.169.8.178",
+        image: str = "docker.io/bitnami/spark:3.5.0-debian-11-r16",
+        k8s_master: str = "10.119.46.42",
     ):
         script_path = f"{Path(__file__).resolve().parent}/_spark_job.py"
+        remote_script_dir = f"hdfs://{k8s_master}:30900/python/"
         remote_script_path = f"hdfs://{k8s_master}:30900/python/compute.py"
         self.hdfs_commands = (
+            f"{hadoop_path} fs -mkdir -p {remote_script_dir};"
             f"{hadoop_path} fs -rm -R {remote_script_path};"
             f"{hadoop_path} fs -copyFromLocal {script_path} {remote_script_path}"
         )
@@ -101,7 +103,10 @@ class OfflineJobLauncher:
             return
         jct = jct.group(1)
         if jct is None:
+            print("jct is None")
             return
+        else:
+            print("jct is ", jct)
         write_to_file(f"{self.output_path}/{test_case_name}", f"{jct}\n")
         write_to_file(f"{self.output_path}/{test_case_name}.log", f"{message}\n")
 

@@ -4,3 +4,10 @@ data
 .vscode
 tmp
 log
+*.ipynb
+helm
+bin
+/figures
+/README.md
+/exporters
+/old_figures

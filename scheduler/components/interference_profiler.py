@@ -67,8 +67,8 @@ class InterferenceProfiler:
                 "microservice",
                 "pod",
                 "cpu_some_avg10",
-                "cpu_usage",
-                "mem_usage",
+                "pod_cpu_usage",
+                "pod_mem_usage",
                 "round",
                 "throughput",
                 "offline_job",
@@ -79,13 +79,12 @@ class InterferenceProfiler:
         ]
         assignment_data = pd.read_csv(assignment_data_path)
         data = pod_data.merge(assignment_data).merge(node_data)
+        data = data[~data['microservice'].str.contains('python')]
         for app_name, grp in data.groupby("microservice"):
-            if "python" in app_name:
-                continue
             replicas = len(grp["pod"].unique())
             grp["throughput"] /= replicas
             y = grp["cpu_some_avg10"].tolist()
-            x = grp[["node_cpu", "node_mcp", "cpu_usage", "mem_usage", "throughput"]]
+            x = grp[["node_cpu", "node_mcp", "pod_cpu_usage", "pod_mem_usage", "throughput"]]
             x = x.apply(lambda x: list(x), axis=1).tolist()
             model = PSIModel()
             print(f"LS {app_name} SMAPE score: ")

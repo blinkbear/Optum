@@ -1,2 +1,2 @@
-MODEL_ROOT = "data/models/experiment_02"
-DATA_ROOT = "data/experiment_02/profiling"
+MODEL_ROOT = "data/models/um_profiling"
+DATA_ROOT = "data/profiling_sn"
