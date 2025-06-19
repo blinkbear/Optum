@@ -1,4 +1,4 @@
-from tkinter import W
+import os 
 from AEFM.data_collector.jaeger_trace_collector import JaegerTraceCollector
 from AEFM.data_collector.models import CpuUsage, MemUsage
 from AEFM.data_collector.wrk_throughput_collector import WrkThroughputCollector

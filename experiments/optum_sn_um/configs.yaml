@@ -9,22 +9,22 @@ file_paths:
   offline_job_output_path: tmp/offline_job_optum_um
 jaeger_entrance: nginx-web-server 
 jaeger_host: http://localhost:30094
-namespace: social
+namespace: sn 
 nodes:
 - ip: 192.168.0.14
   name: slave14
   roles:
   - infra
-- ip: 192.168.0.11
-  name: slave11
+- ip: 192.168.0.22
+  name: slave22
   roles:
   - testbed
 - ip: 192.168.0.12
   name: slave12
   roles:
   - testbed
-- ip: 192.168.0.13
-  name: slave13
+- ip: 192.168.0.16
+  name: slave16
   roles:
   - testbed
 pod_spec:

@@ -16,13 +16,15 @@ class OfflineJobLauncher:
         k8s_master: str = "10.119.46.42",
     ):
         script_path = f"{Path(__file__).resolve().parent}/_spark_job.py"
-        remote_script_dir = f"hdfs://{k8s_master}:30900/python/"
-        remote_script_path = f"hdfs://{k8s_master}:30900/python/compute.py"
-        self.hdfs_commands = (
-            f"{hadoop_path} fs -mkdir -p {remote_script_dir};"
-            f"{hadoop_path} fs -rm -R {remote_script_path};"
-            f"{hadoop_path} fs -copyFromLocal {script_path} {remote_script_path}"
-        )
+        # remote_script_dir = f"hdfs://{k8s_master}:30900/python/"
+        # remote_script_path = f"hdfs://{k8s_master}:30900/python/compute.py"
+        # local_script_path = f"file://{script_path}"
+        http_script_path = "http://10.119.46.42:5000/_spark_job.py"
+        # self.hdfs_commands = (
+        #     f"{hadoop_path} fs -mkdir -p {remote_script_dir};"
+        #     f"{hadoop_path} fs -rm -R {remote_script_path};"
+        #     f"{hadoop_path} fs -copyFromLocal {script_path} {remote_script_path}"
+        # )
         self.worker_thread: None | threading.Thread = None
         self.message_queue: None | queue.Queue = None
         self.output_path = output_path
@@ -54,7 +56,7 @@ class OfflineJobLauncher:
             self.run_command += (
                 f"--conf spark.kubernetes.executor.scheduler.name={scheduler_name} "
             )
-        self.run_command += remote_script_path
+        self.run_command += http_script_path
 
     def worker(self, run_command, test_case_name, message: queue.Queue):
         proc = subprocess.Popen(
@@ -137,7 +139,7 @@ class OfflineJobLauncher:
         )
 
     def start(self, instances, test_case_name):
-        os.system(self.hdfs_commands)
+        # os.system(self.hdfs_commands)
         run_command = self.run_command.format(str(instances))
         message = queue.Queue()
         worker_thread = threading.Thread(

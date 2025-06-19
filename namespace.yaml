@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
- name: social
+ name: sn 
  annotations:
      scheduler.alpha.kubernetes.io/node-selector: newproject=optum
 spec: {}
